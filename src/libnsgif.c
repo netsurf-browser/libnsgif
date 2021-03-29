@@ -418,7 +418,7 @@ static gif_result gif_initialise_frame(gif_animation *gif)
         if (gif_bytes < 1) {
                 return GIF_INSUFFICIENT_FRAME_DATA;
         }
-        if (gif_data[0] > LZW_CODE_MAX) {
+        if (gif_data[0] >= LZW_CODE_MAX) {
                 return GIF_DATA_ERROR;
         }
 
