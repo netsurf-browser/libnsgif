@@ -230,7 +230,7 @@ static lzw_result lzw__clear_codes(
 
 	/* Reset dictionary building context */
 	ctx->current_code_size = ctx->initial_code_size + 1;
-	ctx->current_code_size_max = (1 << ctx->current_code_size) - 1;;
+	ctx->current_code_size_max = (1 << ctx->current_code_size) - 1;
 	ctx->current_entry = (1 << ctx->initial_code_size) + 2;
 
 	/* There might be a sequence of clear codes, so process them all */
