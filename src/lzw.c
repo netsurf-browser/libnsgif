@@ -272,6 +272,10 @@ lzw_result lzw_decode_init(
 {
 	struct lzw_dictionary_entry *table = ctx->table;
 
+	if (code_size >= LZW_CODE_MAX) {
+		return LZW_BAD_ICODE;
+	}
+
 	/* Initialise the input reading context */
 	ctx->input.data = compressed_data;
 	ctx->input.data_len = compressed_data_len;
