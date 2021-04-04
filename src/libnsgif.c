@@ -672,8 +672,6 @@ gif__decode(gif_animation *gif,
                         const uint8_t *uncompressed;
                         unsigned row_available;
                         if (available == 0) {
-                                res = lzw_decode(gif->lzw_ctx,
-                                                &uncompressed, &available);
                                 if (res != LZW_OK) {
                                         /* Unexpected end of frame, try to recover */
                                         if (res == LZW_OK_EOD) {
@@ -683,6 +681,8 @@ gif__decode(gif_animation *gif,
                                         }
                                         break;
                                 }
+                                res = lzw_decode(gif->lzw_ctx,
+                                                &uncompressed, &available);
                         }
 
                         row_available = x < available ? x : available;
