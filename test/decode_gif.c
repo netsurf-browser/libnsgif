@@ -161,6 +161,10 @@ static void write_ppm(FILE* fh, const char *name, gif_animation *gif,
                 if (code != GIF_OK)
                         warning("gif_decode_frame", code);
 
+                if (!gif->frames[i].display) {
+                        continue;
+                }
+
                 if (!no_write) {
                         fprintf(fh, "# frame %u:\n", i);
                         image = (unsigned char *) gif->frame_image;
