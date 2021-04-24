@@ -463,19 +463,8 @@ static inline uint32_t lzw__write_pixels(struct lzw_ctx *ctx,
 }
 
 /* Exported function, documented in lzw.h */
-lzw_result lzw_decode(struct lzw_ctx *ctx,
-		const uint8_t *restrict* const restrict data,
-		uint32_t *restrict used)
-{
-	*used = 0;
-	*data = ctx->stack_base;
-	return lzw__decode(ctx, ctx->stack_base, sizeof(ctx->stack_base),
-			lzw__write_pixels, used);
-}
-
-/* Exported function, documented in lzw.h */
 lzw_result lzw_decode_continuous(struct lzw_ctx *ctx,
-		const uint8_t ** const data,
+		const uint8_t *restrict *const restrict data,
 		uint32_t *restrict used)
 {
 	*used = 0;
