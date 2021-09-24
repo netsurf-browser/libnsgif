@@ -54,6 +54,7 @@ for GIF in $(ls ${GIFTESTS});do
     ECODE=$?
     if [ "${ECODE}" -gt 127 ];then
 	GIFTESTERRC=$((GIFTESTERRC+1))
+	echo "Error ${GIF}"
     else
 	if [ "${ECODE}" -gt 0 ];then
 	    GIFTESTFAILC=$((GIFTESTFAILC+1))
