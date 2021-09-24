@@ -364,7 +364,7 @@ static inline void lzw__table_add_entry(
 	entry->value = code;
 	entry->first = ctx->prev_code_first;
 	entry->count = ctx->prev_code_count + 1;
-	entry->extends = ctx->prev_code;
+	entry->extends = ctx->table_size - ctx->prev_code;
 
 	ctx->table_size++;
 }
@@ -467,7 +467,7 @@ static inline uint32_t lzw__write_fn(struct lzw_ctx *ctx,
 		uint16_t left)
 {
 	uint8_t *restrict output_pos = (uint8_t *)output_data + output_used;
-	const struct lzw_table_entry * const table = ctx->table;
+	const struct lzw_table_entry *entry = ctx->table + code;
 	uint32_t space = output_length - output_used;
 	uint16_t count = left;
 
@@ -483,15 +483,13 @@ static inline uint32_t lzw__write_fn(struct lzw_ctx *ctx,
 
 	/* Skip over any values we don't have space for. */
 	for (unsigned i = left; i != 0; i--) {
-		const struct lzw_table_entry *entry = table + code;
-		code = entry->extends;
+		entry -= entry->extends;
 	}
 
 	output_pos += count;
 	for (unsigned i = count; i != 0; i--) {
-		const struct lzw_table_entry *entry = table + code;
 		*--output_pos = entry->value;
-		code = entry->extends;
+		entry -= entry->extends;
 	}
 
 	return count;
@@ -548,7 +546,7 @@ static inline uint32_t lzw__map_write_fn(struct lzw_ctx *ctx,
 		uint16_t left)
 {
 	uint32_t *restrict output_pos = (uint32_t *)output_data + output_used;
-	const struct lzw_table_entry * const table = ctx->table;
+	const struct lzw_table_entry *entry = ctx->table + code;
 	uint32_t space = output_length - output_used;
 	uint16_t count = left;
 
@@ -563,25 +561,22 @@ static inline uint32_t lzw__map_write_fn(struct lzw_ctx *ctx,
 	ctx->output_left = left;
 
 	for (unsigned i = left; i != 0; i--) {
-		const struct lzw_table_entry *entry = table + code;
-		code = entry->extends;
+		entry -= entry->extends;
 	}
 
 	output_pos += count;
 	if (ctx->has_transparency) {
 		for (unsigned i = count; i != 0; i--) {
-			const struct lzw_table_entry *entry = table + code;
 			--output_pos;
 			if (entry->value != ctx->transparency_idx) {
 				*output_pos = ctx->colour_map[entry->value];
 			}
-			code = entry->extends;
+			entry -= entry->extends;
 		}
 	} else {
 		for (unsigned i = count; i != 0; i--) {
-			const struct lzw_table_entry *entry = table + code;
 			*--output_pos = ctx->colour_map[entry->value];
-			code = entry->extends;
+			entry -= entry->extends;
 		}
 	}
 
