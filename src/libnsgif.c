@@ -688,13 +688,21 @@ gif__decode_complex(gif_animation *gif,
 			row_available = x < available ? x : available;
 			x -= row_available;
 			available -= row_available;
-			while (row_available-- > 0) {
-				register unsigned int colour;
-				colour = *uncompressed++;
-				if (colour != transparency_index) {
-					*frame_scanline = colour_table[colour];
+			if (transparency_index > 0xFF) {
+				while (row_available-- > 0) {
+					*frame_scanline++ =
+						colour_table[*uncompressed++];
 				}
-				frame_scanline++;
+			} else {
+				while (row_available-- > 0) {
+					register unsigned int colour;
+					colour = *uncompressed++;
+					if (colour != transparency_index) {
+						*frame_scanline =
+							colour_table[colour];
+					}
+					frame_scanline++;
+				}
 			}
 		}
 	}
