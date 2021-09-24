@@ -562,7 +562,7 @@ lzw_result lzw_decode_map_continuous(struct lzw_ctx *ctx,
 				ctx->output_code, ctx->output_left);
 	}
 
-	while (*used != sizeof(ctx->stack_base)) {
+	while (*used != length) {
 		lzw_result res = lzw__decode(ctx, data, length,
 				lzw__write_pixels_map, used);
 		if (res != LZW_OK) {
