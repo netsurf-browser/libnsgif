@@ -568,13 +568,21 @@ static inline uint32_t lzw__map_write_fn(struct lzw_ctx *ctx,
 	}
 
 	output_pos += count;
-	for (unsigned i = count; i != 0; i--) {
-		const struct lzw_table_entry *entry = table + code;
-		--output_pos;
-		if (entry->value != ctx->transparency_idx) {
-			*output_pos = ctx->colour_map[entry->value];
+	if (ctx->has_transparency) {
+		for (unsigned i = count; i != 0; i--) {
+			const struct lzw_table_entry *entry = table + code;
+			--output_pos;
+			if (entry->value != ctx->transparency_idx) {
+				*output_pos = ctx->colour_map[entry->value];
+			}
+			code = entry->extends;
 		}
-		code = entry->extends;
+	} else {
+		for (unsigned i = count; i != 0; i--) {
+			const struct lzw_table_entry *entry = table + code;
+			*--output_pos = ctx->colour_map[entry->value];
+			code = entry->extends;
+		}
 	}
 
 	return count;
