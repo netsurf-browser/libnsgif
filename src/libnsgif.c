@@ -1049,22 +1049,24 @@ gif_internal_decode_frame(gif_animation *gif,
 	}
 gif_decode_frame_exit:
 
-	/* Check if we should test for optimisation */
-	if (gif->frames[frame].virgin) {
-		if (gif->bitmap_callbacks.bitmap_test_opaque) {
-			gif->frames[frame].opaque = gif->bitmap_callbacks.bitmap_test_opaque(gif->frame_image);
-		} else {
-			gif->frames[frame].opaque = false;
+	if (!clear_image) {
+		if (gif->bitmap_callbacks.bitmap_modified) {
+			gif->bitmap_callbacks.bitmap_modified(gif->frame_image);
 		}
-		gif->frames[frame].virgin = false;
-	}
 
-	if (gif->bitmap_callbacks.bitmap_set_opaque) {
-		gif->bitmap_callbacks.bitmap_set_opaque(gif->frame_image, gif->frames[frame].opaque);
-	}
+		/* Check if we should test for optimisation */
+		if (gif->frames[frame].virgin) {
+			if (gif->bitmap_callbacks.bitmap_test_opaque) {
+				gif->frames[frame].opaque = gif->bitmap_callbacks.bitmap_test_opaque(gif->frame_image);
+			} else {
+				gif->frames[frame].opaque = false;
+			}
+			gif->frames[frame].virgin = false;
+		}
 
-	if (gif->bitmap_callbacks.bitmap_modified) {
-		gif->bitmap_callbacks.bitmap_modified(gif->frame_image);
+		if (gif->bitmap_callbacks.bitmap_set_opaque) {
+			gif->bitmap_callbacks.bitmap_set_opaque(gif->frame_image, gif->frames[frame].opaque);
+		}
 	}
 
 	/* Restore the buffer position */
