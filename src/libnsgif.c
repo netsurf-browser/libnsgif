@@ -110,7 +110,6 @@ gif_initialise_frame_extensions(gif_animation *gif, const int frame)
 {
 	unsigned char *gif_data, *gif_end;
 	int gif_bytes;
-	unsigned int block_size;
 
 	/* Get our buffer position etc.	*/
 	gif_data = (unsigned char *)(gif->gif_data + gif->buffer_position);
@@ -205,9 +204,8 @@ gif_initialise_frame_extensions(gif_animation *gif, const int frame)
 		 * of data This data is ignored by this gif decoder
 		 */
 		gif_bytes = (gif_end - gif_data);
-		block_size = 0;
 		while (gif_data < gif_end && gif_data[0] != GIF_BLOCK_TERMINATOR) {
-			block_size = gif_data[0] + 1;
+			unsigned int block_size = gif_data[0] + 1;
 			if ((gif_bytes -= block_size) < 0) {
 				return GIF_INSUFFICIENT_FRAME_DATA;
 			}
