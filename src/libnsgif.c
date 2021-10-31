@@ -317,7 +317,7 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	gif_bytes = (gif_end - gif_data);
 
 	/* Check if we've finished */
-	if ((gif_bytes = (gif_end - gif_data)) < 1) {
+	if (gif_bytes < 1) {
 		return GIF_INSUFFICIENT_FRAME_DATA;
 	}
 
