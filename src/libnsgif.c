@@ -219,7 +219,6 @@ gif_initialise_frame_extensions(gif_animation *gif, const int frame)
 	return GIF_OK;
 }
 
-
 /**
  * Attempts to initialise the next frame
  *
@@ -326,6 +325,21 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 		return GIF_OK;
 	}
 
+	/* 10-byte Image Descriptor is:
+	 *
+	 *  +0   CHAR   Image Separator (0x2c)
+	 *  +1   SHORT  Image Left Position
+	 *  +3   SHORT  Image Top Position
+	 *  +5   SHORT  Width
+	 *  +7   SHORT  Height
+	 *  +9   CHAR   __Packed Fields__
+	 *              1BIT    Local Colour Table Flag
+	 *              1BIT    Interlace Flag
+	 *              1BIT    Sort Flag
+	 *              2BITS   Reserved
+	 *              3BITS   Size of Local Colour Table
+	 */
+
 	/* If we're not done, there should be an image descriptor */
 	if (gif_data[0] != GIF_IMAGE_SEPARATOR) {
 		return GIF_FRAME_DATA_ERROR;
@@ -339,12 +353,14 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	offset_y = gif_data[3] | (gif_data[4] << 8);
 	width = gif_data[5] | (gif_data[6] << 8);
 	height = gif_data[7] | (gif_data[8] << 8);
+	flags = gif_data[9];
 
 	/* Set up the redraw area. */
 	gif->frames[frame].redraw_x = offset_x;
 	gif->frames[frame].redraw_y = offset_y;
 	gif->frames[frame].redraw_width = width;
 	gif->frames[frame].redraw_height = height;
+	gif->frames[frame].flags = flags;
 
 	/* if we are clearing the background then we need to redraw enough to
 	 * cover the previous frame too
@@ -361,7 +377,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 			offset_y + height : gif->height;
 
 	/* Decode the flags */
-	flags = gif_data[9];
 	colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
 
 	/* Move our data onwards and remember we've got a bit of this frame */
@@ -991,37 +1006,11 @@ gif_internal_decode_frame(gif_animation *gif,
 		goto gif_decode_frame_exit;
 	}
 
-	/* 10-byte Image Descriptor is:
-	 *
-	 *  +0   CHAR   Image Separator (0x2c)
-	 *  +1   SHORT  Image Left Position
-	 *  +3   SHORT  Image Top Position
-	 *  +5   SHORT  Width
-	 *  +7   SHORT  Height
-	 *  +9   CHAR   __Packed Fields__
-	 *              1BIT    Local Colour Table Flag
-	 *              1BIT    Interlace Flag
-	 *              1BIT    Sort Flag
-	 *              2BITS   Reserved
-	 *              3BITS   Size of Local Colour Table
-	 */
-	if (gif_data[0] != GIF_IMAGE_SEPARATOR) {
-		return_value = GIF_DATA_ERROR;
-		goto gif_decode_frame_exit;
-	}
-	offset_x = gif_data[1] | (gif_data[2] << 8);
-	offset_y = gif_data[3] | (gif_data[4] << 8);
-	width = gif_data[5] | (gif_data[6] << 8);
-	height = gif_data[7] | (gif_data[8] << 8);
-
-	/* Boundary checking - shouldn't ever happen except unless the data has
-	 * been modified since initialisation.
-	 */
-	if ((offset_x + width > gif->width) ||
-	    (offset_y + height > gif->height)) {
-		return_value = GIF_DATA_ERROR;
-		goto gif_decode_frame_exit;
-	}
+	offset_x = gif->frames[frame].redraw_x;
+	offset_y = gif->frames[frame].redraw_y;
+	width = gif->frames[frame].redraw_width;
+	height = gif->frames[frame].redraw_height;
+	flags = gif->frames[frame].flags;
 
 	/* Make sure we have a buffer to decode to.
 	 */
@@ -1030,7 +1019,6 @@ gif_internal_decode_frame(gif_animation *gif,
 	}
 
 	/* Decode the flags */
-	flags = gif_data[9];
 	colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
 	interlace = flags & GIF_INTERLACE_MASK;
 

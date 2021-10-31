@@ -62,6 +62,8 @@ typedef struct gif_frame {
         unsigned int redraw_width;
         /** height of redraw rectangle */
         unsigned int redraw_height;
+        /* Frame flags */
+        unsigned int flags;
 } gif_frame;
 
 /* API for Bitmap callbacks */
