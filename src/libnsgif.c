@@ -445,13 +445,10 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 static gif_result gif_skip_frame_extensions(gif_animation *gif)
 {
 	unsigned char *gif_data, *gif_end;
-	int gif_bytes;
-	unsigned int block_size;
 
 	/* Get our buffer position etc.	*/
 	gif_data = (unsigned char *)(gif->gif_data + gif->buffer_position);
 	gif_end = (unsigned char *)(gif->gif_data + gif->buffer_size);
-	gif_bytes = (gif_end - gif_data);
 
 	/* Skip the extensions */
 	while (gif_data < gif_end && gif_data[0] == GIF_EXTENSION_INTRODUCER) {
@@ -483,14 +480,13 @@ static gif_result gif_skip_frame_extensions(gif_animation *gif)
 		/* Repeatedly skip blocks until we get a zero block or run out
 		 * of data This data is ignored by this gif decoder
 		 */
-		gif_bytes = (gif_end - gif_data);
-		block_size = 0;
 		while (gif_data < gif_end && gif_data[0] != GIF_BLOCK_TERMINATOR) {
-			block_size = gif_data[0] + 1;
-			if ((gif_bytes -= block_size) < 0) {
+			unsigned int block_size = gif_data[0] + 1;
+
+			gif_data += block_size;
+			if (gif_data >= gif_end) {
 				return GIF_INSUFFICIENT_FRAME_DATA;
 			}
-			gif_data += block_size;
 		}
 		++gif_data;
 	}
