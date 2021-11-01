@@ -156,6 +156,13 @@ gif_initialise_frame_extensions(gif_animation *gif, const int frame)
 			if (gif->frames[frame].disposal_method == GIF_FRAME_QUIRKS_RESTORE) {
 				gif->frames[frame].disposal_method = GIF_FRAME_RESTORE;
 			}
+
+			/* if we are clearing the background then we need to
+			 * redraw enough to cover the previous frame too
+			 */
+			gif->frames[frame].redraw_required =
+				((gif->frames[frame].disposal_method == GIF_FRAME_CLEAR) ||
+				 (gif->frames[frame].disposal_method == GIF_FRAME_RESTORE));
 			gif_data += (2 + gif_data[1]);
 			break;
 
@@ -446,13 +453,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	offset_y = gif->frames[frame].redraw_y;
 	width = gif->frames[frame].redraw_width;
 	height = gif->frames[frame].redraw_height;
-
-	/* if we are clearing the background then we need to redraw enough to
-	 * cover the previous frame too
-	 */
-	gif->frames[frame].redraw_required =
-			((gif->frames[frame].disposal_method == GIF_FRAME_CLEAR) ||
-			 (gif->frames[frame].disposal_method == GIF_FRAME_RESTORE));
 
 	/* Frame size may have grown.
 	 */
