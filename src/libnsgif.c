@@ -107,12 +107,12 @@ gif_initialise_sprite(gif_animation *gif,
 static gif_result
 gif_initialise_frame_extensions(gif_animation *gif, const int frame)
 {
-	unsigned char *gif_data, *gif_end;
+	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 
 	/* Get our buffer position etc.	*/
-	gif_data = (unsigned char *)(gif->gif_data + gif->buffer_position);
-	gif_end = (unsigned char *)(gif->gif_data + gif->buffer_size);
+	gif_data = (uint8_t *)(gif->gif_data + gif->buffer_position);
+	gif_end = (uint8_t *)(gif->gif_data + gif->buffer_size);
 
 	/* Initialise the extensions */
 	while (gif_data < gif_end && gif_data[0] == GIF_EXTENSION_INTRODUCER) {
@@ -289,7 +289,7 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	int frame;
 	gif_frame *temp_buf;
 
-	unsigned char *gif_data, *gif_end;
+	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t flags = 0;
 	uint32_t width, height, offset_x, offset_y;
@@ -300,8 +300,8 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	frame = gif->frame_count;
 
 	/* Get our buffer position etc. */
-	gif_data = (unsigned char *)(gif->gif_data + gif->buffer_position);
-	gif_end = (unsigned char *)(gif->gif_data + gif->buffer_size);
+	gif_data = (uint8_t *)(gif->gif_data + gif->buffer_position);
+	gif_end = (uint8_t *)(gif->gif_data + gif->buffer_size);
 	gif_bytes = (gif_end - gif_data);
 
 	/* Check if we've finished */
@@ -481,11 +481,11 @@ static gif_result gif_initialise_frame(gif_animation *gif)
  */
 static gif_result gif_skip_frame_extensions(gif_animation *gif)
 {
-	unsigned char *gif_data, *gif_end;
+	uint8_t *gif_data, *gif_end;
 
 	/* Get our buffer position etc.	*/
-	gif_data = (unsigned char *)(gif->gif_data + gif->buffer_position);
-	gif_end = (unsigned char *)(gif->gif_data + gif->buffer_size);
+	gif_data = (uint8_t *)(gif->gif_data + gif->buffer_position);
+	gif_end = (uint8_t *)(gif->gif_data + gif->buffer_size);
 
 	/* Skip the extensions */
 	while (gif_data < gif_end && gif_data[0] == GIF_EXTENSION_INTRODUCER) {
@@ -803,7 +803,7 @@ gif__decode(gif_animation *gif,
 static gif_result
 gif_clear_frame(gif_animation *gif, uint32_t frame)
 {
-	unsigned char *gif_data, *gif_end;
+	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
 	uint32_t flags, colour_table_size;
@@ -945,7 +945,7 @@ gif_internal_decode_frame(gif_animation *gif,
 {
 	gif_result err;
 	uint32_t index = 0;
-	unsigned char *gif_data, *gif_end;
+	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
 	uint32_t flags, colour_table_size, interlace;
@@ -1038,8 +1038,8 @@ gif_internal_decode_frame(gif_animation *gif,
 			 * is in byte 0 and the alpha component is in
 			 * byte 3.
 			 */
-			unsigned char *entry =
-				(unsigned char *) &colour_table[index];
+			uint8_t *entry =
+				(uint8_t *) &colour_table[index];
 
 			entry[0] = gif_data[0]; /* r */
 			entry[1] = gif_data[1]; /* g */
@@ -1177,7 +1177,7 @@ void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks)
 /* exported function documented in libnsgif.h */
 gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 {
-	unsigned char *gif_data;
+	uint8_t *gif_data;
 	uint32_t index;
 	gif_result return_value;
 
@@ -1333,7 +1333,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 				 * is in byte 0 and the alpha component is in
 				 * byte 3.
 				 */
-				unsigned char *entry = (unsigned char *) &gif->
+				uint8_t *entry = (uint8_t *) &gif->
 						       global_colour_table[index];
 
 				entry[0] = gif_data[0]; /* r */
@@ -1352,7 +1352,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 
 			entry[0] = 0x00000000;
 			/* Force Alpha channel to opaque */
-			((unsigned char *) entry)[3] = 0xff;
+			((uint8_t *) entry)[3] = 0xff;
 
 			entry[1] = 0xffffffff;
 		}
