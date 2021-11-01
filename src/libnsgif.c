@@ -266,15 +266,26 @@ static gif_result gif__parse_image_descriptor(
 	}
 
 	if (decode) {
+		unsigned x, y, w, h;
+
 		if (data[0] != GIF_IMAGE_SEPARATOR) {
 			return GIF_FRAME_DATA_ERROR;
 		}
 
-		frame->redraw_x      = data[1] | (data[2] << 8);
-		frame->redraw_y      = data[3] | (data[4] << 8);
-		frame->redraw_width  = data[5] | (data[6] << 8);
-		frame->redraw_height = data[7] | (data[8] << 8);
-		frame->flags         = data[9];
+		x = data[1] | (data[2] << 8);
+		y = data[3] | (data[4] << 8);
+		w = data[5] | (data[6] << 8);
+		h = data[7] | (data[8] << 8);
+		frame->flags = data[9];
+
+		frame->redraw_x      = x;
+		frame->redraw_y      = y;
+		frame->redraw_width  = w;
+		frame->redraw_height = h;
+
+		/* Frame size may have grown. */
+		gif->width  = (x + w > gif->width ) ? x + w : gif->width;
+		gif->height = (y + h > gif->height) ? y + h : gif->height;
 	}
 
 	gif->buffer_position += GIF_IMAGE_DESCRIPTOR_LEN;
@@ -357,7 +368,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
-	uint32_t width, height, offset_x, offset_y;
 	uint32_t block_size;
 	gif_result return_value;
 
@@ -448,18 +458,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	}
 	gif_data = gif->gif_data + gif->buffer_position;
 	gif_bytes = (gif_end - gif_data);
-
-	offset_x = gif->frames[frame].redraw_x;
-	offset_y = gif->frames[frame].redraw_y;
-	width = gif->frames[frame].redraw_width;
-	height = gif->frames[frame].redraw_height;
-
-	/* Frame size may have grown.
-	 */
-	gif->width = (offset_x + width > gif->width) ?
-			offset_x + width : gif->width;
-	gif->height = (offset_y + height > gif->height) ?
-			offset_y + height : gif->height;
 
 	/* Move our data onwards and remember we've got a bit of this frame */
 	gif->frame_count_partial = frame + 1;
