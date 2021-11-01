@@ -293,7 +293,7 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	int gif_bytes;
 	uint32_t flags = 0;
 	uint32_t width, height, offset_x, offset_y;
-	uint32_t block_size, colour_table_size;
+	uint32_t block_size;
 	gif_result return_value;
 
 	/* Get the frame to decode and our data position */
@@ -400,14 +400,13 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	gif->height = (offset_y + height > gif->height) ?
 			offset_y + height : gif->height;
 
-	/* Decode the flags */
-	colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
-
 	/* Move our data onwards and remember we've got a bit of this frame */
 	gif->frame_count_partial = frame + 1;
 
 	/* Skip the local colour table */
 	if (flags & GIF_COLOUR_TABLE_MASK) {
+		int colour_table_size;
+		colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
 		gif_data += 3 * colour_table_size;
 		if ((gif_bytes = (gif_end - gif_data)) < 0) {
 			return GIF_INSUFFICIENT_FRAME_DATA;
@@ -806,7 +805,7 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
-	uint32_t flags, colour_table_size;
+	uint32_t flags;
 	uint32_t *colour_table;
 	uint32_t *frame_data = 0; // Set to 0 for no warnings
 	uint32_t save_buffer_position;
@@ -866,9 +865,6 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 		return GIF_INSUFFICIENT_MEMORY;
 	}
 
-	/* Decode the flags */
-	colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
-
 	/* Advance data pointer to next block either colour table or image
 	 * data.
 	 */
@@ -877,7 +873,9 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 
 	/* Set up the colour table */
 	if (flags & GIF_COLOUR_TABLE_MASK) {
-		if (gif_bytes < (int)(3 * colour_table_size)) {
+		int colour_table_size;
+		colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
+		if (gif_bytes < (3 * colour_table_size)) {
 			return_value = GIF_INSUFFICIENT_FRAME_DATA;
 			goto gif_decode_frame_exit;
 		}
@@ -944,11 +942,10 @@ gif_internal_decode_frame(gif_animation *gif,
 			  uint32_t frame)
 {
 	gif_result err;
-	uint32_t index = 0;
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
-	uint32_t flags, colour_table_size, interlace;
+	uint32_t flags, interlace;
 	uint32_t *colour_table;
 	uint32_t *frame_data = 0; // Set to 0 for no warnings
 	uint32_t save_buffer_position;
@@ -1014,7 +1011,6 @@ gif_internal_decode_frame(gif_animation *gif,
 	}
 
 	/* Decode the flags */
-	colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
 	interlace = flags & GIF_INTERLACE_MASK;
 
 	/* Advance data pointer to next block either colour table or image
@@ -1025,12 +1021,14 @@ gif_internal_decode_frame(gif_animation *gif,
 
 	/* Set up the colour table */
 	if (flags & GIF_COLOUR_TABLE_MASK) {
+		int colour_table_size;
+		colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
 		if (gif_bytes < (int)(3 * colour_table_size)) {
 			return_value = GIF_INSUFFICIENT_FRAME_DATA;
 			goto gif_decode_frame_exit;
 		}
 		colour_table = gif->local_colour_table;
-		for (index = 0; index < colour_table_size; index++) {
+		for (int index = 0; index < colour_table_size; index++) {
 			/* Gif colour map contents are r,g,b.
 			 *
 			 * We want to pack them bytewise into the
@@ -1038,8 +1036,7 @@ gif_internal_decode_frame(gif_animation *gif,
 			 * is in byte 0 and the alpha component is in
 			 * byte 3.
 			 */
-			uint8_t *entry =
-				(uint8_t *) &colour_table[index];
+			uint8_t *entry = (uint8_t *) &colour_table[index];
 
 			entry[0] = gif_data[0]; /* r */
 			entry[1] = gif_data[1]; /* g */
