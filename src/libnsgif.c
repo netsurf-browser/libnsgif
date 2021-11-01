@@ -996,14 +996,6 @@ gif_internal_decode_frame(gif_animation *gif,
 	gif_end = gif->gif_data + gif->buffer_size;
 	gif_bytes = (gif_end - gif_data);
 
-	/*
-	 * Ensure there is a minimal amount of data to proceed.  The shortest
-	 * block of data is a 10-byte image descriptor + 1-byte gif trailer
-	 */
-	if (gif_bytes < 12) {
-		return GIF_INSUFFICIENT_FRAME_DATA;
-	}
-
 	/* Save the buffer position */
 	save_buffer_position = gif->buffer_position;
 	gif->buffer_position = gif_data - gif->gif_data;
@@ -1014,14 +1006,6 @@ gif_internal_decode_frame(gif_animation *gif,
 	}
 	gif_data = (gif->gif_data + gif->buffer_position);
 	gif_bytes = (gif_end - gif_data);
-
-	/* Ensure we have enough data for the 10-byte image descriptor + 1-byte
-	 * gif trailer
-	 */
-	if (gif_bytes < 12) {
-		return_value = GIF_INSUFFICIENT_FRAME_DATA;
-		goto gif_decode_frame_exit;
-	}
 
 	/* Make sure we have a buffer to decode to.
 	 */
