@@ -272,6 +272,60 @@ static gif_result gif__parse_image_descriptor(
 }
 
 /**
+ * Get a frame's colour table.
+ *
+ * Sets up gif->colour_table for the frame.
+ *
+ * \param[in] gif    The gif object we're decoding.
+ * \param[in] frame  The frame to get the colour table for.
+ * \return GIF_OK on success, appropriate error otherwise.
+ */
+static gif_result gif__parse_colour_table(
+		struct gif_animation *gif,
+		struct gif_frame *frame)
+{
+	const uint8_t *data = gif->gif_data + gif->buffer_position;
+	size_t len = gif->buffer_size - gif->buffer_position;
+	unsigned colour_table_size;
+	uint8_t *entry;
+
+	assert(gif != NULL);
+	assert(frame != NULL);
+
+	if ((frame->flags & GIF_COLOUR_TABLE_MASK) == 0) {
+		gif->colour_table = gif->global_colour_table;
+		return GIF_OK;
+	}
+
+	colour_table_size = 2 << (frame->flags & GIF_COLOUR_TABLE_SIZE_MASK);
+	if (len < colour_table_size * 3) {
+		return GIF_INSUFFICIENT_FRAME_DATA;
+	}
+
+	entry = (uint8_t *)gif->local_colour_table;
+
+	while (colour_table_size--) {
+		/* Gif colour map contents are r,g,b.
+		 *
+		 * We want to pack them bytewise into the
+		 * colour table, such that the red component
+		 * is in byte 0 and the alpha component is in
+		 * byte 3.
+		 */
+
+		*entry++ = *data++; /* r */
+		*entry++ = *data++; /* g */
+		*entry++ = *data++; /* b */
+		*entry++ = 0xff;    /* a */
+	}
+
+	gif->colour_table = gif->local_colour_table;
+	gif->buffer_position = data - gif->gif_data;
+
+	return GIF_OK;
+}
+
+/**
  * Attempts to initialise the next frame
  *
  * \param gif The animation context
@@ -1018,37 +1072,16 @@ gif_internal_decode_frame(gif_animation *gif,
 	 */
 	gif_data += 10;
 	gif_bytes = (gif_end - gif_data);
+	gif->buffer_position = gif_data - gif->gif_data;
 
-	/* Set up the colour table */
-	if (flags & GIF_COLOUR_TABLE_MASK) {
-		int colour_table_size;
-		colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
-		if (gif_bytes < (int)(3 * colour_table_size)) {
-			return_value = GIF_INSUFFICIENT_FRAME_DATA;
-			goto gif_decode_frame_exit;
-		}
-		colour_table = gif->local_colour_table;
-		for (int index = 0; index < colour_table_size; index++) {
-			/* Gif colour map contents are r,g,b.
-			 *
-			 * We want to pack them bytewise into the
-			 * colour table, such that the red component
-			 * is in byte 0 and the alpha component is in
-			 * byte 3.
-			 */
-			uint8_t *entry = (uint8_t *) &colour_table[index];
-
-			entry[0] = gif_data[0]; /* r */
-			entry[1] = gif_data[1]; /* g */
-			entry[2] = gif_data[2]; /* b */
-			entry[3] = 0xff;        /* a */
-
-			gif_data += 3;
-		}
-		gif_bytes = (gif_end - gif_data);
-	} else {
-		colour_table = gif->global_colour_table;
+	return_value = gif__parse_colour_table(gif, &gif->frames[frame]);
+	if (return_value != GIF_OK) {
+		return return_value;
 	}
+	gif_data = gif->gif_data + gif->buffer_position;
+	gif_bytes = (gif_end - gif_data);
+
+	colour_table = gif->colour_table;
 
 	/* Ensure sufficient data remains */
 	if (gif_bytes < 1) {

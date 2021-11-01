@@ -138,6 +138,8 @@ typedef struct gif_animation {
         unsigned int *global_colour_table;
         /** local colour table */
         unsigned int *local_colour_table;
+        /** current colour table */
+        unsigned int *colour_table;
 
         /** previous frame for GIF_FRAME_RESTORE */
         void *prev_frame;
