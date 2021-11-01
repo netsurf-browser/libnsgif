@@ -241,7 +241,8 @@ gif_initialise_frame_extensions(gif_animation *gif, const int frame)
  */
 static gif_result gif__parse_image_descriptor(
 		struct gif_animation *gif,
-		struct gif_frame *frame)
+		struct gif_frame *frame,
+		bool decode)
 {
 	const uint8_t *data = gif->gif_data + gif->buffer_position;
 	size_t len = gif->buffer_size - gif->buffer_position;
@@ -257,15 +258,17 @@ static gif_result gif__parse_image_descriptor(
 		return GIF_INSUFFICIENT_FRAME_DATA;
 	}
 
-	if (data[0] != GIF_IMAGE_SEPARATOR) {
-		return GIF_FRAME_DATA_ERROR;
-	}
+	if (decode) {
+		if (data[0] != GIF_IMAGE_SEPARATOR) {
+			return GIF_FRAME_DATA_ERROR;
+		}
 
-	frame->redraw_x      = data[1] | (data[2] << 8);
-	frame->redraw_y      = data[3] | (data[4] << 8);
-	frame->redraw_width  = data[5] | (data[6] << 8);
-	frame->redraw_height = data[7] | (data[8] << 8);
-	frame->flags         = data[9];
+		frame->redraw_x      = data[1] | (data[2] << 8);
+		frame->redraw_y      = data[3] | (data[4] << 8);
+		frame->redraw_width  = data[5] | (data[6] << 8);
+		frame->redraw_height = data[7] | (data[8] << 8);
+		frame->flags         = data[9];
+	}
 
 	gif->buffer_position += GIF_IMAGE_DESCRIPTOR_LEN;
 	return GIF_OK;
@@ -282,12 +285,12 @@ static gif_result gif__parse_image_descriptor(
  */
 static gif_result gif__parse_colour_table(
 		struct gif_animation *gif,
-		struct gif_frame *frame)
+		struct gif_frame *frame,
+		bool decode)
 {
 	const uint8_t *data = gif->gif_data + gif->buffer_position;
 	size_t len = gif->buffer_size - gif->buffer_position;
 	unsigned colour_table_size;
-	uint8_t *entry;
 
 	assert(gif != NULL);
 	assert(frame != NULL);
@@ -302,26 +305,28 @@ static gif_result gif__parse_colour_table(
 		return GIF_INSUFFICIENT_FRAME_DATA;
 	}
 
-	entry = (uint8_t *)gif->local_colour_table;
+	if (decode) {
+		int count = colour_table_size;
+		uint8_t *entry = (uint8_t *)gif->local_colour_table;
 
-	while (colour_table_size--) {
-		/* Gif colour map contents are r,g,b.
-		 *
-		 * We want to pack them bytewise into the
-		 * colour table, such that the red component
-		 * is in byte 0 and the alpha component is in
-		 * byte 3.
-		 */
+		while (count--) {
+			/* Gif colour map contents are r,g,b.
+			 *
+			 * We want to pack them bytewise into the
+			 * colour table, such that the red component
+			 * is in byte 0 and the alpha component is in
+			 * byte 3.
+			 */
 
-		*entry++ = *data++; /* r */
-		*entry++ = *data++; /* g */
-		*entry++ = *data++; /* b */
-		*entry++ = 0xff;    /* a */
+			*entry++ = *data++; /* r */
+			*entry++ = *data++; /* g */
+			*entry++ = *data++; /* b */
+			*entry++ = 0xff;    /* a */
+		}
 	}
 
+	gif->buffer_position += colour_table_size * 3;
 	gif->colour_table = gif->local_colour_table;
-	gif->buffer_position = data - gif->gif_data;
-
 	return GIF_OK;
 }
 
@@ -345,7 +350,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
-	uint32_t flags = 0;
 	uint32_t width, height, offset_x, offset_y;
 	uint32_t block_size;
 	gif_result return_value;
@@ -426,11 +430,15 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 		return GIF_OK;
 	}
 
-	return_value = gif__parse_image_descriptor(gif, &gif->frames[frame]);
+	return_value = gif__parse_image_descriptor(gif, &gif->frames[frame], true);
 	if (return_value != GIF_OK) {
 		return return_value;
 	}
 
+	return_value = gif__parse_colour_table(gif, &gif->frames[frame], false);
+	if (return_value != GIF_OK) {
+		return return_value;
+	}
 	gif_data = gif->gif_data + gif->buffer_position;
 	gif_bytes = (gif_end - gif_data);
 
@@ -438,7 +446,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	offset_y = gif->frames[frame].redraw_y;
 	width = gif->frames[frame].redraw_width;
 	height = gif->frames[frame].redraw_height;
-	flags = gif->frames[frame].flags;
 
 	/* if we are clearing the background then we need to redraw enough to
 	 * cover the previous frame too
@@ -456,16 +463,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 
 	/* Move our data onwards and remember we've got a bit of this frame */
 	gif->frame_count_partial = frame + 1;
-
-	/* Skip the local colour table */
-	if (flags & GIF_COLOUR_TABLE_MASK) {
-		int colour_table_size;
-		colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
-		gif_data += 3 * colour_table_size;
-		if ((gif_bytes = (gif_end - gif_data)) < 0) {
-			return GIF_INSUFFICIENT_FRAME_DATA;
-		}
-	}
 
 	/* Ensure we have a correct code size */
 	if (gif_bytes < 1) {
@@ -859,7 +856,6 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
-	uint32_t flags;
 	uint32_t *colour_table;
 	uint32_t *frame_data = 0; // Set to 0 for no warnings
 	uint32_t save_buffer_position;
@@ -899,47 +895,30 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	gif_data = (gif->gif_data + gif->buffer_position);
 	gif_bytes = (gif_end - gif_data);
 
-	/* Ensure we have enough data for the 10-byte image descriptor + 1-byte
-	 * gif trailer
-	 */
-	if (gif_bytes < 12) {
-		return_value = GIF_INSUFFICIENT_FRAME_DATA;
-		goto gif_decode_frame_exit;
-	}
-
-	offset_x = gif->frames[frame].redraw_x;
-	offset_y = gif->frames[frame].redraw_y;
-	width = gif->frames[frame].redraw_width;
-	height = gif->frames[frame].redraw_height;
-	flags = gif->frames[frame].flags;
-
 	/* Make sure we have a buffer to decode to.
 	 */
 	if (gif_initialise_sprite(gif, gif->width, gif->height)) {
 		return GIF_INSUFFICIENT_MEMORY;
 	}
 
-	/* Advance data pointer to next block either colour table or image
-	 * data.
-	 */
-	gif_data += 10;
+	return_value = gif__parse_image_descriptor(gif, &gif->frames[frame], false);
+	if (return_value != GIF_OK) {
+		return return_value;
+	}
+
+	return_value = gif__parse_colour_table(gif, &gif->frames[frame], true);
+	if (return_value != GIF_OK) {
+		return return_value;
+	}
+	gif_data = gif->gif_data + gif->buffer_position;
 	gif_bytes = (gif_end - gif_data);
 
-	/* Set up the colour table */
-	if (flags & GIF_COLOUR_TABLE_MASK) {
-		int colour_table_size;
-		colour_table_size = 2 << (flags & GIF_COLOUR_TABLE_SIZE_MASK);
-		if (gif_bytes < (3 * colour_table_size)) {
-			return_value = GIF_INSUFFICIENT_FRAME_DATA;
-			goto gif_decode_frame_exit;
-		}
-		colour_table = gif->local_colour_table;
-		gif_data += 3 * colour_table_size;
+	offset_x = gif->frames[frame].redraw_x;
+	offset_y = gif->frames[frame].redraw_y;
+	width = gif->frames[frame].redraw_width;
+	height = gif->frames[frame].redraw_height;
 
-		gif_bytes = (gif_end - gif_data);
-	} else {
-		colour_table = gif->global_colour_table;
-	}
+	colour_table = gif->colour_table;
 
 	/* Ensure sufficient data remains */
 	if (gif_bytes < 1) {
@@ -999,7 +978,7 @@ gif_internal_decode_frame(gif_animation *gif,
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
-	uint32_t flags, interlace;
+	uint32_t interlace;
 	uint32_t *colour_table;
 	uint32_t *frame_data = 0; // Set to 0 for no warnings
 	uint32_t save_buffer_position;
@@ -1052,12 +1031,6 @@ gif_internal_decode_frame(gif_animation *gif,
 		goto gif_decode_frame_exit;
 	}
 
-	offset_x = gif->frames[frame].redraw_x;
-	offset_y = gif->frames[frame].redraw_y;
-	width = gif->frames[frame].redraw_width;
-	height = gif->frames[frame].redraw_height;
-	flags = gif->frames[frame].flags;
-
 	/* Make sure we have a buffer to decode to.
 	 */
 	if (gif_initialise_sprite(gif, gif->width, gif->height)) {
@@ -1065,21 +1038,24 @@ gif_internal_decode_frame(gif_animation *gif,
 	}
 
 	/* Decode the flags */
-	interlace = flags & GIF_INTERLACE_MASK;
 
-	/* Advance data pointer to next block either colour table or image
-	 * data.
-	 */
-	gif_data += 10;
-	gif_bytes = (gif_end - gif_data);
-	gif->buffer_position = gif_data - gif->gif_data;
+	return_value = gif__parse_image_descriptor(gif, &gif->frames[frame], false);
+	if (return_value != GIF_OK) {
+		return return_value;
+	}
 
-	return_value = gif__parse_colour_table(gif, &gif->frames[frame]);
+	return_value = gif__parse_colour_table(gif, &gif->frames[frame], true);
 	if (return_value != GIF_OK) {
 		return return_value;
 	}
 	gif_data = gif->gif_data + gif->buffer_position;
 	gif_bytes = (gif_end - gif_data);
+
+	offset_x = gif->frames[frame].redraw_x;
+	offset_y = gif->frames[frame].redraw_y;
+	width = gif->frames[frame].redraw_width;
+	height = gif->frames[frame].redraw_height;
+	interlace = gif->frames[frame].flags & GIF_INTERLACE_MASK;
 
 	colour_table = gif->colour_table;
 
