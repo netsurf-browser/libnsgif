@@ -105,7 +105,9 @@ gif_initialise_sprite(gif_animation *gif,
  *         frame GIF_OK for successful initialisation.
  */
 static gif_result
-gif_initialise_frame_extensions(gif_animation *gif, const int frame)
+gif_initialise_frame_extensions(
+		struct gif_animation *gif,
+		struct gif_frame *frame)
 {
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
@@ -140,12 +142,12 @@ gif_initialise_frame_extensions(gif_animation *gif, const int frame)
 				return GIF_INSUFFICIENT_FRAME_DATA;
 			}
 
-			gif->frames[frame].frame_delay = gif_data[3] | (gif_data[4] << 8);
+			frame->frame_delay = gif_data[3] | (gif_data[4] << 8);
 			if (gif_data[2] & GIF_TRANSPARENCY_MASK) {
-				gif->frames[frame].transparency = true;
-				gif->frames[frame].transparency_index = gif_data[5];
+				frame->transparency = true;
+				frame->transparency_index = gif_data[5];
 			}
-			gif->frames[frame].disposal_method = ((gif_data[2] & GIF_DISPOSAL_MASK) >> 2);
+			frame->disposal_method = ((gif_data[2] & GIF_DISPOSAL_MASK) >> 2);
 			/* I have encountered documentation and GIFs in the
 			 * wild that use 0x04 to restore the previous frame,
 			 * rather than the officially documented 0x03.  I
@@ -153,16 +155,16 @@ gif_initialise_frame_extensions(gif_animation *gif, const int frame)
 			 * export this way.  We handle this as a type of
 			 * "quirks" mode.
 			 */
-			if (gif->frames[frame].disposal_method == GIF_FRAME_QUIRKS_RESTORE) {
-				gif->frames[frame].disposal_method = GIF_FRAME_RESTORE;
+			if (frame->disposal_method == GIF_FRAME_QUIRKS_RESTORE) {
+				frame->disposal_method = GIF_FRAME_RESTORE;
 			}
 
 			/* if we are clearing the background then we need to
 			 * redraw enough to cover the previous frame too
 			 */
-			gif->frames[frame].redraw_required =
-				((gif->frames[frame].disposal_method == GIF_FRAME_CLEAR) ||
-				 (gif->frames[frame].disposal_method == GIF_FRAME_RESTORE));
+			frame->redraw_required =
+				((frame->disposal_method == GIF_FRAME_CLEAR) ||
+				 (frame->disposal_method == GIF_FRAME_RESTORE));
 			gif_data += (2 + gif_data[1]);
 			break;
 
@@ -434,7 +436,7 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 
 	/* Initialise any extensions */
 	gif->buffer_position = gif_data - gif->gif_data;
-	return_value = gif_initialise_frame_extensions(gif, frame);
+	return_value = gif_initialise_frame_extensions(gif, &gif->frames[frame]);
 	if (return_value != GIF_OK) {
 		return return_value;
 	}
