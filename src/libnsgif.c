@@ -583,7 +583,8 @@ static gif_result gif_skip_frame_extensions(gif_animation *gif)
 	return GIF_OK;
 }
 
-static uint32_t gif_interlaced_line(int height, int y) {
+static uint32_t gif_interlaced_line(int height, int y)
+{
 	if ((y << 3) < height) {
 		return (y << 3);
 	}
