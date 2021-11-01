@@ -78,8 +78,8 @@
  */
 static gif_result
 gif_initialise_sprite(gif_animation *gif,
-		      unsigned int width,
-		      unsigned int height)
+		      uint32_t width,
+		      uint32_t height)
 {
 	/* Already allocated? */
 	if (gif->frame_image) {
@@ -204,7 +204,7 @@ gif_initialise_frame_extensions(gif_animation *gif, const int frame)
 		 */
 		gif_bytes = (gif_end - gif_data);
 		while (gif_data < gif_end && gif_data[0] != GIF_BLOCK_TERMINATOR) {
-			unsigned int block_size = gif_data[0] + 1;
+			uint32_t block_size = gif_data[0] + 1;
 			if ((gif_bytes -= block_size) < 0) {
 				return GIF_INSUFFICIENT_FRAME_DATA;
 			}
@@ -291,9 +291,9 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 
 	unsigned char *gif_data, *gif_end;
 	int gif_bytes;
-	unsigned int flags = 0;
-	unsigned int width, height, offset_x, offset_y;
-	unsigned int block_size, colour_table_size;
+	uint32_t flags = 0;
+	uint32_t width, height, offset_x, offset_y;
+	uint32_t block_size, colour_table_size;
 	gif_result return_value;
 
 	/* Get the frame to decode and our data position */
@@ -518,7 +518,7 @@ static gif_result gif_skip_frame_extensions(gif_animation *gif)
 		 * of data This data is ignored by this gif decoder
 		 */
 		while (gif_data < gif_end && gif_data[0] != GIF_BLOCK_TERMINATOR) {
-			unsigned int block_size = gif_data[0] + 1;
+			uint32_t block_size = gif_data[0] + 1;
 
 			gif_data += block_size;
 			if (gif_data >= gif_end) {
@@ -533,7 +533,7 @@ static gif_result gif_skip_frame_extensions(gif_animation *gif)
 	return GIF_OK;
 }
 
-static unsigned int gif_interlaced_line(int height, int y) {
+static uint32_t gif_interlaced_line(int height, int y) {
 	if ((y << 3) < height) {
 		return (y << 3);
 	}
@@ -636,17 +636,17 @@ static gif_result gif__recover_previous_frame(const gif_animation *gif)
 
 static gif_result
 gif__decode_complex(gif_animation *gif,
-		unsigned int frame,
-		unsigned int width,
-		unsigned int height,
-		unsigned int offset_x,
-		unsigned int offset_y,
-		unsigned int interlace,
+		uint32_t frame,
+		uint32_t width,
+		uint32_t height,
+		uint32_t offset_x,
+		uint32_t offset_y,
+		uint32_t interlace,
 		uint8_t minimum_code_size,
-		unsigned int *restrict frame_data,
-		unsigned int *restrict colour_table)
+		uint32_t *restrict frame_data,
+		uint32_t *restrict colour_table)
 {
-	unsigned int transparency_index;
+	uint32_t transparency_index;
 	uint32_t available = 0;
 	gif_result ret = GIF_OK;
 	lzw_result res;
@@ -662,10 +662,10 @@ gif__decode_complex(gif_animation *gif,
 			gif->frames[frame].transparency_index :
 			GIF_NO_TRANSPARENCY;
 
-	for (unsigned int y = 0; y < height; y++) {
-		unsigned int x;
-		unsigned int decode_y;
-		unsigned int *frame_scanline;
+	for (uint32_t y = 0; y < height; y++) {
+		uint32_t x;
+		uint32_t decode_y;
+		uint32_t *frame_scanline;
 
 		if (interlace) {
 			decode_y = gif_interlaced_line(height, y) + offset_y;
@@ -702,7 +702,7 @@ gif__decode_complex(gif_animation *gif,
 				}
 			} else {
 				while (row_available-- > 0) {
-					register unsigned int colour;
+					register uint32_t colour;
 					colour = *uncompressed++;
 					if (colour != transparency_index) {
 						*frame_scanline =
@@ -718,14 +718,14 @@ gif__decode_complex(gif_animation *gif,
 
 static gif_result
 gif__decode_simple(gif_animation *gif,
-		unsigned int frame,
-		unsigned int height,
-		unsigned int offset_y,
+		uint32_t frame,
+		uint32_t height,
+		uint32_t offset_y,
 		uint8_t minimum_code_size,
-		unsigned int *restrict frame_data,
-		unsigned int *restrict colour_table)
+		uint32_t *restrict frame_data,
+		uint32_t *restrict colour_table)
 {
-	unsigned int transparency_index;
+	uint32_t transparency_index;
 	uint32_t pixels = gif->width * height;
 	uint32_t written = 0;
 	gif_result ret = GIF_OK;
@@ -770,15 +770,15 @@ gif__decode_simple(gif_animation *gif,
 
 static inline gif_result
 gif__decode(gif_animation *gif,
-		unsigned int frame,
-		unsigned int width,
-		unsigned int height,
-		unsigned int offset_x,
-		unsigned int offset_y,
-		unsigned int interlace,
+		uint32_t frame,
+		uint32_t width,
+		uint32_t height,
+		uint32_t offset_x,
+		uint32_t offset_y,
+		uint32_t interlace,
 		uint8_t minimum_code_size,
-		unsigned int *restrict frame_data,
-		unsigned int *restrict colour_table)
+		uint32_t *restrict frame_data,
+		uint32_t *restrict colour_table)
 {
 	gif_result ret;
 
@@ -801,16 +801,16 @@ gif__decode(gif_animation *gif,
  * \param frame The frame number to decode.
  */
 static gif_result
-gif_clear_frame(gif_animation *gif, unsigned int frame)
+gif_clear_frame(gif_animation *gif, uint32_t frame)
 {
 	unsigned char *gif_data, *gif_end;
 	int gif_bytes;
-	unsigned int width, height, offset_x, offset_y;
-	unsigned int flags, colour_table_size;
-	unsigned int *colour_table;
-	unsigned int *frame_data = 0; // Set to 0 for no warnings
-	unsigned int save_buffer_position;
-	unsigned int return_value = 0;
+	uint32_t width, height, offset_x, offset_y;
+	uint32_t flags, colour_table_size;
+	uint32_t *colour_table;
+	uint32_t *frame_data = 0; // Set to 0 for no warnings
+	uint32_t save_buffer_position;
+	uint32_t return_value = 0;
 
 	/* Ensure this frame is supposed to be decoded */
 	if (gif->frames[frame].display == false) {
@@ -910,9 +910,9 @@ gif_clear_frame(gif_animation *gif, unsigned int frame)
 
 	/* Clear our frame */
 	if (gif->frames[frame].disposal_method == GIF_FRAME_CLEAR) {
-		unsigned int y;
+		uint32_t y;
 		for (y = 0; y < height; y++) {
-			unsigned int *frame_scanline;
+			uint32_t *frame_scanline;
 			frame_scanline = frame_data + offset_x + ((offset_y + y) * gif->width);
 			if (gif->frames[frame].transparency) {
 				memset(frame_scanline,
@@ -941,18 +941,18 @@ gif_decode_frame_exit:
  */
 static gif_result
 gif_internal_decode_frame(gif_animation *gif,
-			  unsigned int frame)
+			  uint32_t frame)
 {
 	gif_result err;
-	unsigned int index = 0;
+	uint32_t index = 0;
 	unsigned char *gif_data, *gif_end;
 	int gif_bytes;
-	unsigned int width, height, offset_x, offset_y;
-	unsigned int flags, colour_table_size, interlace;
-	unsigned int *colour_table;
-	unsigned int *frame_data = 0; // Set to 0 for no warnings
-	unsigned int save_buffer_position;
-	unsigned int return_value = 0;
+	uint32_t width, height, offset_x, offset_y;
+	uint32_t flags, colour_table_size, interlace;
+	uint32_t *colour_table;
+	uint32_t *frame_data = 0; // Set to 0 for no warnings
+	uint32_t save_buffer_position;
+	uint32_t return_value = 0;
 
 	/* Ensure this frame is supposed to be decoded */
 	if (gif->frames[frame].display == false) {
@@ -1178,7 +1178,7 @@ void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks)
 gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 {
 	unsigned char *gif_data;
-	unsigned int index;
+	uint32_t index;
 	gif_result return_value;
 
 	/* Initialize values */
@@ -1279,8 +1279,8 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 		 * is lying to us. It's far better to give the wrong colours
 		 * than to trample over some memory somewhere.
 		*/
-		gif->global_colour_table = calloc(GIF_MAX_COLOURS, sizeof(unsigned int));
-		gif->local_colour_table = calloc(GIF_MAX_COLOURS, sizeof(unsigned int));
+		gif->global_colour_table = calloc(GIF_MAX_COLOURS, sizeof(uint32_t));
+		gif->local_colour_table = calloc(GIF_MAX_COLOURS, sizeof(uint32_t));
 		if ((gif->global_colour_table == NULL) ||
 		    (gif->local_colour_table == NULL)) {
 			gif_finalise(gif);
@@ -1348,7 +1348,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 			/* Create a default colour table with the first two
 			 * colours as black and white
 			 */
-			unsigned int *entry = gif->global_colour_table;
+			uint32_t *entry = gif->global_colour_table;
 
 			entry[0] = 0x00000000;
 			/* Force Alpha channel to opaque */
