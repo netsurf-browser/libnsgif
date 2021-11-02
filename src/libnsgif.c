@@ -996,14 +996,6 @@ gif_internal_decode_frame(gif_animation *gif,
 		goto gif_decode_frame_exit;
 	}
 
-	/* Make sure we have a buffer to decode to.
-	 */
-	if (gif_initialise_sprite(gif, gif->width, gif->height)) {
-		return GIF_INSUFFICIENT_MEMORY;
-	}
-
-	/* Decode the flags */
-
 	return_value = gif__parse_image_descriptor(gif, &gif->frames[frame], false);
 	if (return_value != GIF_OK) {
 		return return_value;
@@ -1034,6 +1026,11 @@ gif_internal_decode_frame(gif_animation *gif,
 	if (gif_data[0] == GIF_TRAILER) {
 		return_value = GIF_OK;
 		goto gif_decode_frame_exit;
+	}
+
+	/* Make sure we have a buffer to decode to. */
+	if (gif_initialise_sprite(gif, gif->width, gif->height)) {
+		return GIF_INSUFFICIENT_MEMORY;
 	}
 
 	/* Get the frame data */
