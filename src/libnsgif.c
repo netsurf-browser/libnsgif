@@ -95,109 +95,165 @@ gif_initialise_sprite(gif_animation *gif,
 	return GIF_OK;
 }
 
+/**
+ * Parse the application extension
+ *
+ * \param[in] frame  The gif object we're decoding.
+ * \param[in] data   The data to decode.
+ * \param[in] len    Byte length of data.
+ * \return GIF_INSUFFICIENT_FRAME_DATA if more data is needed,
+ *         GIF_OK for success.
+ */
+static gif_result gif__parse_extension_graphic_control(
+		struct gif_frame *frame,
+		uint8_t *data,
+		size_t len)
+{
+	/* 6-byte Graphic Control Extension is:
+	 *
+	 *  +0  CHAR    Graphic Control Label
+	 *  +1  CHAR    Block Size
+	 *  +2  CHAR    __Packed Fields__
+	 *              3BITS   Reserved
+	 *              3BITS   Disposal Method
+	 *              1BIT    User Input Flag
+	 *              1BIT    Transparent Color Flag
+	 *  +3  SHORT   Delay Time
+	 *  +5  CHAR    Transparent Color Index
+	 */
+	if (len < 6) {
+		return GIF_INSUFFICIENT_FRAME_DATA;
+	}
+
+	frame->frame_delay = data[3] | (data[4] << 8);
+	if (data[2] & GIF_TRANSPARENCY_MASK) {
+		frame->transparency = true;
+		frame->transparency_index = data[5];
+	}
+
+	frame->disposal_method = ((data[2] & GIF_DISPOSAL_MASK) >> 2);
+	/* I have encountered documentation and GIFs in the
+	 * wild that use 0x04 to restore the previous frame,
+	 * rather than the officially documented 0x03.  I
+	 * believe some (older?)  software may even actually
+	 * export this way.  We handle this as a type of
+	 * "quirks" mode. */
+	if (frame->disposal_method == GIF_FRAME_QUIRKS_RESTORE) {
+		frame->disposal_method = GIF_FRAME_RESTORE;
+	}
+
+	/* if we are clearing the background then we need to
+	 * redraw enough to cover the previous frame too. */
+	frame->redraw_required =
+			frame->disposal_method == GIF_FRAME_CLEAR ||
+			frame->disposal_method == GIF_FRAME_RESTORE;
+
+	return GIF_OK;
+}
 
 /**
- * Attempts to initialise the frame's extensions
+ * Parse the application extension
  *
- * \param gif The animation context
- * \param frame The frame number
- * @return GIF_INSUFFICIENT_FRAME_DATA for insufficient data to complete the
- *         frame GIF_OK for successful initialisation.
+ * \param[in] gif   The gif object we're decoding.
+ * \param[in] data  The data to decode.
+ * \param[in] len   Byte length of data.
+ * \return GIF_INSUFFICIENT_FRAME_DATA if more data is needed,
+ *         GIF_OK for success.
  */
-static gif_result
-gif_initialise_frame_extensions(
+static gif_result gif__parse_extension_application(
 		struct gif_animation *gif,
-		struct gif_frame *frame)
+		uint8_t *data,
+		size_t len)
+{
+	/* 14-byte+ Application Extension is:
+	 *
+	 *  +0    CHAR    Application Extension Label
+	 *  +1    CHAR    Block Size
+	 *  +2    8CHARS  Application Identifier
+	 *  +10   3CHARS  Appl. Authentication Code
+	 *  +13   1-256   Application Data (Data sub-blocks)
+	 */
+	if (len < 17) {
+		return GIF_INSUFFICIENT_FRAME_DATA;
+	}
+
+	if ((data[1] == 0x0b) &&
+	    (strncmp((const char *)data + 2, "NETSCAPE2.0", 11) == 0) &&
+	    (data[13] == 0x03) && (data[14] == 0x01)) {
+		gif->loop_count = data[15] | (data[16] << 8);
+	}
+
+	return GIF_OK;
+}
+
+/**
+ * Parse the frame's extensions
+ *
+ * \param[in] gif     The gif object we're decoding.
+ * \param[in] frame   The frame to parse extensions for.
+ * \param[in] decode  Whether to decode or skip over the extension.
+ * \return GIF_INSUFFICIENT_FRAME_DATA if more data is needed,
+ *         GIF_OK for success.
+ */
+static gif_result gif__parse_frame_extensions(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
+		bool decode)
 {
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 
 	/* Get our buffer position etc.	*/
-	gif_data = (uint8_t *)(gif->gif_data + gif->buffer_position);
-	gif_end = (uint8_t *)(gif->gif_data + gif->buffer_size);
+	gif_data = gif->gif_data + gif->buffer_position;
+	gif_end = gif->gif_data + gif->buffer_size;
+	gif_bytes = gif_end - gif_data;
 
 	/* Initialise the extensions */
-	while (gif_data < gif_end && gif_data[0] == GIF_EXTENSION_INTRODUCER) {
-		++gif_data;
-		if ((gif_bytes = (gif_end - gif_data)) < 1) {
+	while (gif_bytes > 0 && gif_data[0] == GIF_EXTENSION_INTRODUCER) {
+		bool block_step = true;
+		gif_result ret;
+
+		gif_data++;
+		gif_bytes--;
+
+		if (gif_bytes == 0) {
 			return GIF_INSUFFICIENT_FRAME_DATA;
 		}
 
 		/* Switch on extension label */
 		switch (gif_data[0]) {
 		case GIF_EXTENSION_GRAPHIC_CONTROL:
-			/* 6-byte Graphic Control Extension is:
-			 *
-			 *  +0  CHAR    Graphic Control Label
-			 *  +1  CHAR    Block Size
-			 *  +2  CHAR    __Packed Fields__
-			 *              3BITS   Reserved
-			 *              3BITS   Disposal Method
-			 *              1BIT    User Input Flag
-			 *              1BIT    Transparent Color Flag
-			 *  +3  SHORT   Delay Time
-			 *  +5  CHAR    Transparent Color Index
-			 */
-			if (gif_bytes < 6) {
-				return GIF_INSUFFICIENT_FRAME_DATA;
+			if (decode) {
+				ret = gif__parse_extension_graphic_control(
+						frame, gif_data, gif_bytes);
+				if (ret != GIF_OK) {
+					return ret;
+				}
 			}
-
-			frame->frame_delay = gif_data[3] | (gif_data[4] << 8);
-			if (gif_data[2] & GIF_TRANSPARENCY_MASK) {
-				frame->transparency = true;
-				frame->transparency_index = gif_data[5];
-			}
-			frame->disposal_method = ((gif_data[2] & GIF_DISPOSAL_MASK) >> 2);
-			/* I have encountered documentation and GIFs in the
-			 * wild that use 0x04 to restore the previous frame,
-			 * rather than the officially documented 0x03.  I
-			 * believe some (older?)  software may even actually
-			 * export this way.  We handle this as a type of
-			 * "quirks" mode.
-			 */
-			if (frame->disposal_method == GIF_FRAME_QUIRKS_RESTORE) {
-				frame->disposal_method = GIF_FRAME_RESTORE;
-			}
-
-			/* if we are clearing the background then we need to
-			 * redraw enough to cover the previous frame too
-			 */
-			frame->redraw_required =
-				((frame->disposal_method == GIF_FRAME_CLEAR) ||
-				 (frame->disposal_method == GIF_FRAME_RESTORE));
-			gif_data += (2 + gif_data[1]);
 			break;
 
 		case GIF_EXTENSION_APPLICATION:
-			/* 14-byte+ Application Extension is:
-			 *
-			 *  +0    CHAR    Application Extension Label
-			 *  +1    CHAR    Block Size
-			 *  +2    8CHARS  Application Identifier
-			 *  +10   3CHARS  Appl. Authentication Code
-			 *  +13   1-256   Application Data (Data sub-blocks)
-			 */
-			if (gif_bytes < 17) {
-				return GIF_INSUFFICIENT_FRAME_DATA;
+			if (decode) {
+				ret = gif__parse_extension_application(
+						gif, gif_data, gif_bytes);
+				if (ret != GIF_OK) {
+					return ret;
+				}
 			}
-			if ((gif_data[1] == 0x0b) &&
-			    (strncmp((const char *) gif_data + 2,
-				     "NETSCAPE2.0", 11) == 0) &&
-			    (gif_data[13] == 0x03) &&
-			    (gif_data[14] == 0x01)) {
-				gif->loop_count = gif_data[15] | (gif_data[16] << 8);
-			}
-			gif_data += (2 + gif_data[1]);
 			break;
 
 		case GIF_EXTENSION_COMMENT:
 			/* Move the pointer to the first data sub-block Skip 1
-			 * byte for the extension label
-			 */
+			 * byte for the extension label. */
 			++gif_data;
+			block_step = false;
 			break;
 
 		default:
+			break;
+		}
+
+		if (block_step) {
 			/* Move the pointer to the first data sub-block Skip 2
 			 * bytes for the extension label and size fields Skip
 			 * the extension size itself
@@ -205,25 +261,27 @@ gif_initialise_frame_extensions(
 			if (gif_bytes < 2) {
 				return GIF_INSUFFICIENT_FRAME_DATA;
 			}
-			gif_data += (2 + gif_data[1]);
+			gif_data += 2 + gif_data[1];
 		}
 
 		/* Repeatedly skip blocks until we get a zero block or run out
-		 * of data This data is ignored by this gif decoder
-		 */
-		gif_bytes = (gif_end - gif_data);
+		 * of data.  This data is ignored by this gif decoder. */
 		while (gif_data < gif_end && gif_data[0] != GIF_BLOCK_TERMINATOR) {
-			uint32_t block_size = gif_data[0] + 1;
-			if ((gif_bytes -= block_size) < 0) {
+			gif_data += gif_data[0] + 1;
+			if (gif_data >= gif_end) {
 				return GIF_INSUFFICIENT_FRAME_DATA;
 			}
-			gif_data += block_size;
 		}
-		++gif_data;
+		gif_data++;
+		gif_bytes = gif_end - gif_data;
+	}
+
+	if (gif_data > gif_end) {
+		gif_data = gif_end;
 	}
 
 	/* Set buffer position and return */
-	gif->buffer_position = (gif_data - gif->gif_data);
+	gif->buffer_position = gif_data - gif->gif_data;
 	return GIF_OK;
 }
 
@@ -436,7 +494,7 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 
 	/* Initialise any extensions */
 	gif->buffer_position = gif_data - gif->gif_data;
-	return_value = gif_initialise_frame_extensions(gif, &gif->frames[frame]);
+	return_value = gif__parse_frame_extensions(gif, &gif->frames[frame], true);
 	if (return_value != GIF_OK) {
 		return return_value;
 	}
@@ -519,68 +577,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 		}
 	}
 	return GIF_WORKING;
-}
-
-
-/**
- * Skips the frame's extensions (which have been previously initialised)
- *
- * \param gif The animation context
- * \return GIF_INSUFFICIENT_FRAME_DATA for insufficient data to complete the
- *         frame GIF_OK for successful decoding
- */
-static gif_result gif_skip_frame_extensions(gif_animation *gif)
-{
-	uint8_t *gif_data, *gif_end;
-
-	/* Get our buffer position etc.	*/
-	gif_data = (uint8_t *)(gif->gif_data + gif->buffer_position);
-	gif_end = (uint8_t *)(gif->gif_data + gif->buffer_size);
-
-	/* Skip the extensions */
-	while (gif_data < gif_end && gif_data[0] == GIF_EXTENSION_INTRODUCER) {
-		++gif_data;
-		if (gif_data >= gif_end) {
-			return GIF_INSUFFICIENT_FRAME_DATA;
-		}
-
-		/* Switch on extension label */
-		switch(gif_data[0]) {
-		case GIF_EXTENSION_COMMENT:
-			/* Move the pointer to the first data sub-block
-			 * 1 byte for the extension label
-			 */
-			++gif_data;
-			break;
-
-		default:
-			/* Move the pointer to the first data sub-block 2 bytes
-			 * for the extension label and size fields Skip the
-			 * extension size itself
-			 */
-			if (gif_data + 1 >= gif_end) {
-				return GIF_INSUFFICIENT_FRAME_DATA;
-			}
-			gif_data += (2 + gif_data[1]);
-		}
-
-		/* Repeatedly skip blocks until we get a zero block or run out
-		 * of data This data is ignored by this gif decoder
-		 */
-		while (gif_data < gif_end && gif_data[0] != GIF_BLOCK_TERMINATOR) {
-			uint32_t block_size = gif_data[0] + 1;
-
-			gif_data += block_size;
-			if (gif_data >= gif_end) {
-				return GIF_INSUFFICIENT_FRAME_DATA;
-			}
-		}
-		++gif_data;
-	}
-
-	/* Set buffer position and return */
-	gif->buffer_position = (gif_data - gif->gif_data);
-	return GIF_OK;
 }
 
 static uint32_t gif_interlaced_line(int height, int y)
@@ -882,11 +878,10 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	gif->buffer_position = gif_data - gif->gif_data;
 
 	/* Skip any extensions because they have already been processed */
-	if ((return_value = gif_skip_frame_extensions(gif)) != GIF_OK) {
+	return_value = gif__parse_frame_extensions(gif, &gif->frames[frame], false);
+	if (return_value != GIF_OK) {
 		goto gif_decode_frame_exit;
 	}
-	gif_data = (gif->gif_data + gif->buffer_position);
-	gif_bytes = (gif_end - gif_data);
 
 	/* Make sure we have a buffer to decode to.
 	 */
@@ -1002,11 +997,10 @@ gif_internal_decode_frame(gif_animation *gif,
 	gif->buffer_position = gif_data - gif->gif_data;
 
 	/* Skip any extensions because they have already been processed */
-	if ((return_value = gif_skip_frame_extensions(gif)) != GIF_OK) {
+	return_value = gif__parse_frame_extensions(gif, &gif->frames[frame], false);
+	if (return_value != GIF_OK) {
 		goto gif_decode_frame_exit;
 	}
-	gif_data = (gif->gif_data + gif->buffer_position);
-	gif_bytes = (gif_end - gif_data);
 
 	/* Make sure we have a buffer to decode to.
 	 */
