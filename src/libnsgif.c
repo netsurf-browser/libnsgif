@@ -836,19 +836,20 @@ gif__decode(gif_animation *gif,
 /**
  * Clear a gif frame.
  *
- * \param[in] gif    The gif object we're decoding.
- * \param[in] frame  The frame to clear.
+ * \param[in] gif     The gif object we're decoding.
+ * \param[in] frame   The frame to clear.
+ * \param[in] bitmap  The bitmap to clear the frame in.
  * \return GIF_OK on success, appropriate error otherwise.
  */
 static gif_result gif_clear_frame(
 		struct gif_animation *gif,
-		struct gif_frame *frame)
+		struct gif_frame *frame,
+		uint32_t *bitmap)
 {
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
 	uint32_t *colour_table;
-	uint32_t *frame_data = 0; // Set to 0 for no warnings
 	uint32_t save_buffer_position;
 	uint32_t return_value = 0;
 
@@ -905,17 +906,10 @@ static gif_result gif_clear_frame(
 		goto gif_decode_frame_exit;
 	}
 
-	/* Get the frame data */
-	assert(gif->bitmap_callbacks.bitmap_get_buffer);
-	frame_data = (void *)gif->bitmap_callbacks.bitmap_get_buffer(gif->frame_image);
-	if (!frame_data) {
-		return GIF_INSUFFICIENT_MEMORY;
-	}
-
 	/* Clear our frame */
 	for (uint32_t y = 0; y < height; y++) {
 		uint32_t *frame_scanline;
-		frame_scanline = frame_data + offset_x + ((offset_y + y) * gif->width);
+		frame_scanline = bitmap + offset_x + ((offset_y + y) * gif->width);
 		if (frame->transparency) {
 			memset(frame_scanline,
 			       GIF_TRANSPARENT_COLOUR,
@@ -1060,7 +1054,7 @@ gif_internal_decode_frame(gif_animation *gif,
 		/* memset((char*)frame_data, colour_table[gif->background_index], gif->width * gif->height * sizeof(int)); */
 	} else if ((frame != 0) &&
 		   (gif->frames[frame - 1].disposal_method == GIF_FRAME_CLEAR)) {
-		return_value = gif_clear_frame(gif, &gif->frames[frame - 1]);
+		return_value = gif_clear_frame(gif, &gif->frames[frame - 1], frame_data);
 		if (return_value != GIF_OK) {
 			goto gif_decode_frame_exit;
 		}
