@@ -883,12 +883,6 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 		goto gif_decode_frame_exit;
 	}
 
-	/* Make sure we have a buffer to decode to.
-	 */
-	if (gif_initialise_sprite(gif, gif->width, gif->height)) {
-		return GIF_INSUFFICIENT_MEMORY;
-	}
-
 	return_value = gif__parse_image_descriptor(gif, &gif->frames[frame], false);
 	if (return_value != GIF_OK) {
 		return return_value;
