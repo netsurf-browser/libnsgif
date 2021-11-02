@@ -604,7 +604,7 @@ static gif_result gif_error_from_lzw(lzw_result l_res)
 	return g_res[l_res];
 }
 
-static void gif__record_previous_frame(gif_animation *gif)
+static void gif__record_frame(gif_animation *gif)
 {
 	bool need_alloc = gif->prev_frame == NULL;
 	const uint32_t *frame_data;
@@ -645,7 +645,7 @@ static void gif__record_previous_frame(gif_animation *gif)
 	gif->prev_index  = gif->decoded_frame;
 }
 
-static gif_result gif__recover_previous_frame(const gif_animation *gif)
+static gif_result gif__recover_frame(const gif_animation *gif)
 {
 	const uint32_t *prev_frame = gif->prev_frame;
 	unsigned height = gif->height < gif->prev_height ? gif->height : gif->prev_height;
@@ -1074,7 +1074,7 @@ gif_internal_decode_frame(gif_animation *gif,
 			 * If the previous frame's disposal method requires we
 			 * restore the previous image, restore our saved image.
 			 */
-			ret = gif__recover_previous_frame(gif);
+			ret = gif__recover_frame(gif);
 			if (ret != GIF_OK) {
 				gif__wipe_bitmap(gif, frame_data);
 			}
@@ -1083,7 +1083,7 @@ gif_internal_decode_frame(gif_animation *gif,
 
 	if (frame->disposal_method == GIF_FRAME_RESTORE) {
 		/* Store the previous frame for later restoration */
-		gif__record_previous_frame(gif);
+		gif__record_frame(gif);
 	}
 
 	gif->decoded_frame = frame_idx;
