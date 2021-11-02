@@ -939,6 +939,7 @@ gif_internal_decode_frame(gif_animation *gif,
 			  uint32_t frame_idx)
 {
 	gif_result ret;
+	struct gif_frame *frame;
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
@@ -947,23 +948,25 @@ gif_internal_decode_frame(gif_animation *gif,
 	uint32_t *frame_data = 0; // Set to 0 for no warnings
 	uint32_t save_buffer_position;
 
-	/* Ensure this frame is supposed to be decoded */
-	if (gif->frames[frame_idx].display == false) {
-		return GIF_OK;
-	}
-
 	/* Ensure the frame is in range to decode */
 	if (frame_idx > gif->frame_count_partial) {
 		return GIF_INSUFFICIENT_DATA;
 	}
 
-	/* done if frame is already decoded */
+	/* Done if frame is already decoded */
 	if (((int)frame_idx == gif->decoded_frame)) {
 		return GIF_OK;
 	}
 
+	frame = &gif->frames[frame_idx];
+
+	/* Ensure this frame is supposed to be decoded */
+	if (frame->display == false) {
+		return GIF_OK;
+	}
+
 	/* Get the start of our frame data and the end of the GIF data */
-	gif_data = gif->gif_data + gif->frames[frame_idx].frame_pointer;
+	gif_data = gif->gif_data + frame->frame_pointer;
 	gif_end = gif->gif_data + gif->buffer_size;
 	gif_bytes = (gif_end - gif_data);
 
@@ -972,28 +975,28 @@ gif_internal_decode_frame(gif_animation *gif,
 	gif->buffer_position = gif_data - gif->gif_data;
 
 	/* Skip any extensions because they have already been processed */
-	ret = gif__parse_frame_extensions(gif, &gif->frames[frame_idx], false);
+	ret = gif__parse_frame_extensions(gif, frame, false);
 	if (ret != GIF_OK) {
 		goto gif_decode_frame_exit;
 	}
 
-	ret = gif__parse_image_descriptor(gif, &gif->frames[frame_idx], false);
+	ret = gif__parse_image_descriptor(gif, frame, false);
 	if (ret != GIF_OK) {
 		goto gif_decode_frame_exit;
 	}
 
-	ret = gif__parse_colour_table(gif, &gif->frames[frame_idx], true);
+	ret = gif__parse_colour_table(gif, frame, true);
 	if (ret != GIF_OK) {
 		return ret;
 	}
 	gif_data = gif->gif_data + gif->buffer_position;
 	gif_bytes = (gif_end - gif_data);
 
-	offset_x = gif->frames[frame_idx].redraw_x;
-	offset_y = gif->frames[frame_idx].redraw_y;
-	width = gif->frames[frame_idx].redraw_width;
-	height = gif->frames[frame_idx].redraw_height;
-	interlace = gif->frames[frame_idx].flags & GIF_INTERLACE_MASK;
+	offset_x = frame->redraw_x;
+	offset_y = frame->redraw_y;
+	width = frame->redraw_width;
+	height = frame->redraw_height;
+	interlace = frame->flags & GIF_INTERLACE_MASK;
 
 	colour_table = gif->colour_table;
 
@@ -1072,7 +1075,7 @@ gif_internal_decode_frame(gif_animation *gif,
 		}
 	}
 
-	if (gif->frames[frame_idx].disposal_method == GIF_FRAME_RESTORE) {
+	if (frame->disposal_method == GIF_FRAME_RESTORE) {
 		/* Store the previous frame for later restoration */
 		gif__record_previous_frame(gif);
 	}
@@ -1091,17 +1094,17 @@ gif_decode_frame_exit:
 	}
 
 	/* Check if we should test for optimisation */
-	if (gif->frames[frame_idx].virgin) {
+	if (frame->virgin) {
 		if (gif->bitmap_callbacks.bitmap_test_opaque) {
-			gif->frames[frame_idx].opaque = gif->bitmap_callbacks.bitmap_test_opaque(gif->frame_image);
+			frame->opaque = gif->bitmap_callbacks.bitmap_test_opaque(gif->frame_image);
 		} else {
-			gif->frames[frame_idx].opaque = false;
+			frame->opaque = false;
 		}
-		gif->frames[frame_idx].virgin = false;
+		frame->virgin = false;
 	}
 
 	if (gif->bitmap_callbacks.bitmap_set_opaque) {
-		gif->bitmap_callbacks.bitmap_set_opaque(gif->frame_image, gif->frames[frame_idx].opaque);
+		gif->bitmap_callbacks.bitmap_set_opaque(gif->frame_image, frame->opaque);
 	}
 
 	/* Restore the buffer position */
