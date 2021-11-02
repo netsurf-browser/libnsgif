@@ -673,18 +673,18 @@ static gif_result gif__recover_frame(const gif_animation *gif)
 }
 
 static gif_result
-gif__decode_complex(gif_animation *gif,
-		uint32_t frame,
+gif__decode_complex(
+		struct gif_animation *gif,
 		uint32_t width,
 		uint32_t height,
 		uint32_t offset_x,
 		uint32_t offset_y,
 		uint32_t interlace,
 		uint8_t minimum_code_size,
+		uint32_t transparency_index,
 		uint32_t *restrict frame_data,
 		uint32_t *restrict colour_table)
 {
-	uint32_t transparency_index;
 	uint32_t available = 0;
 	gif_result ret = GIF_OK;
 	lzw_result res;
@@ -695,10 +695,6 @@ gif__decode_complex(gif_animation *gif,
 	if (res != LZW_OK) {
 		return gif_error_from_lzw(res);
 	}
-
-	transparency_index = gif->frames[frame].transparency ?
-			gif->frames[frame].transparency_index :
-			GIF_NO_TRANSPARENCY;
 
 	for (uint32_t y = 0; y < height; y++) {
 		uint32_t x;
@@ -755,23 +751,19 @@ gif__decode_complex(gif_animation *gif,
 }
 
 static gif_result
-gif__decode_simple(gif_animation *gif,
-		uint32_t frame,
+gif__decode_simple(
+		struct gif_animation *gif,
 		uint32_t height,
 		uint32_t offset_y,
 		uint8_t minimum_code_size,
+		uint32_t transparency_index,
 		uint32_t *restrict frame_data,
 		uint32_t *restrict colour_table)
 {
-	uint32_t transparency_index;
 	uint32_t pixels = gif->width * height;
 	uint32_t written = 0;
 	gif_result ret = GIF_OK;
 	lzw_result res;
-
-	transparency_index = gif->frames[frame].transparency ?
-			gif->frames[frame].transparency_index :
-			GIF_NO_TRANSPARENCY;
 
 	/* Initialise the LZW decoding */
 	res = lzw_decode_init_map(gif->lzw_ctx,
@@ -806,9 +798,9 @@ gif__decode_simple(gif_animation *gif,
 	return ret;
 }
 
-static inline gif_result
-gif__decode(gif_animation *gif,
-		uint32_t frame,
+static inline gif_result gif__decode(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
 		uint32_t width,
 		uint32_t height,
 		uint32_t offset_x,
@@ -819,14 +811,23 @@ gif__decode(gif_animation *gif,
 		uint32_t *restrict colour_table)
 {
 	gif_result ret;
+	uint32_t transparency_index;
+
+	if (frame->transparency) {
+		transparency_index = frame->transparency_index;
+	} else {
+		transparency_index = GIF_NO_TRANSPARENCY;
+	}
 
 	if (interlace == false && width == gif->width && offset_x == 0) {
-		ret = gif__decode_simple(gif, frame, height, offset_y,
-				minimum_code_size, frame_data, colour_table);
+		ret = gif__decode_simple(gif, height, offset_y,
+				minimum_code_size, transparency_index,
+				frame_data, colour_table);
 	} else {
-		ret = gif__decode_complex(gif, frame, width, height,
+		ret = gif__decode_complex(gif, width, height,
 				offset_x, offset_y, interlace,
-				minimum_code_size, frame_data, colour_table);
+				minimum_code_size, transparency_index,
+				frame_data, colour_table);
 	}
 
 	return ret;
@@ -1084,7 +1085,7 @@ gif_internal_decode_frame(gif_animation *gif,
 	gif->decoded_frame = frame_idx;
 	gif->buffer_position = (gif_data - gif->gif_data) + 1;
 
-	ret = gif__decode(gif, frame_idx, width, height,
+	ret = gif__decode(gif, frame, width, height,
 			offset_x, offset_y, interlace, gif_data[0],
 			frame_data, colour_table);
 
