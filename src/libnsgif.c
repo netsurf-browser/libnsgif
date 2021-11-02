@@ -1042,36 +1042,35 @@ gif_internal_decode_frame(gif_animation *gif,
 		goto gif_decode_frame_exit;
 	}
 
-	/* If the previous frame's disposal method requires we restore
-	 * the background colour or this is the first frame, clear
-	 * the frame data
-	 */
+	/* Handle any bitmap clearing/restoration required before decoding this
+	 * frame. */
 	if (frame_idx == 0 || gif->decoded_frame == GIF_INVALID_FRAME) {
 		memset((char*)frame_data,
 		       GIF_TRANSPARENT_COLOUR,
 		       gif->width * gif->height * sizeof(*frame_data));
 
-	} else if ((frame_idx != 0) &&
-		   (gif->frames[frame_idx - 1].disposal_method == GIF_FRAME_CLEAR)) {
-		ret = gif_clear_frame(gif, &gif->frames[frame_idx - 1], frame_data);
-		if (ret != GIF_OK) {
-			goto gif_decode_frame_exit;
-		}
+	} else {
+		struct gif_frame *prev = &gif->frames[frame_idx - 1];
 
-	} else if ((frame_idx != 0) &&
-		   (gif->frames[frame_idx - 1].disposal_method == GIF_FRAME_RESTORE)) {
-		/*
-		 * If the previous frame's disposal method requires we
-		 * restore the previous image, restore our saved image.
-		 */
-		ret = gif__recover_previous_frame(gif);
-		if (ret != GIF_OK) {
-			/* see notes above on transparency
-			 * vs. background color
+		if (prev->disposal_method == GIF_FRAME_CLEAR) {
+			ret = gif_clear_frame(gif, prev, frame_data);
+			if (ret != GIF_OK) {
+				goto gif_decode_frame_exit;
+			}
+		} else if (prev->disposal_method == GIF_FRAME_RESTORE) {
+			/*
+			 * If the previous frame's disposal method requires we
+			 * restore the previous image, restore our saved image.
 			 */
-			memset((char*)frame_data,
-			       GIF_TRANSPARENT_COLOUR,
-			       gif->width * gif->height * sizeof(int));
+			ret = gif__recover_previous_frame(gif);
+			if (ret != GIF_OK) {
+				/* see notes above on transparency
+				 * vs. background color
+				 */
+				memset((char*)frame_data,
+				       GIF_TRANSPARENT_COLOUR,
+				       gif->width * gif->height * sizeof(int));
+			}
 		}
 	}
 
