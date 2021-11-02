@@ -834,13 +834,15 @@ gif__decode(gif_animation *gif,
 }
 
 /**
- * decode a gif frame
+ * Clear a gif frame.
  *
- * \param gif gif animation context.
- * \param frame The frame number to decode.
+ * \param[in] gif    The gif object we're decoding.
+ * \param[in] frame  The frame to clear.
+ * \return GIF_OK on success, appropriate error otherwise.
  */
-static gif_result
-gif_clear_frame(gif_animation *gif, uint32_t frame)
+static gif_result gif_clear_frame(
+		struct gif_animation *gif,
+		struct gif_frame *frame)
 {
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
@@ -850,20 +852,15 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	uint32_t save_buffer_position;
 	uint32_t return_value = 0;
 
-	assert(gif->frames[frame].disposal_method == GIF_FRAME_CLEAR);
+	assert(frame->disposal_method == GIF_FRAME_CLEAR);
 
 	/* Ensure this frame is supposed to be decoded */
-	if (gif->frames[frame].display == false) {
+	if (frame->display == false) {
 		return GIF_OK;
 	}
 
-	/* Ensure the frame is in range to decode */
-	if (frame > gif->frame_count_partial) {
-		return GIF_INSUFFICIENT_DATA;
-	}
-
 	/* Get the start of our frame data and the end of the GIF data */
-	gif_data = gif->gif_data + gif->frames[frame].frame_pointer;
+	gif_data = gif->gif_data + frame->frame_pointer;
 	gif_end = gif->gif_data + gif->buffer_size;
 	gif_bytes = (gif_end - gif_data);
 
@@ -872,27 +869,27 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	gif->buffer_position = gif_data - gif->gif_data;
 
 	/* Skip any extensions because they have already been processed */
-	return_value = gif__parse_frame_extensions(gif, &gif->frames[frame], false);
+	return_value = gif__parse_frame_extensions(gif, frame, false);
 	if (return_value != GIF_OK) {
 		goto gif_decode_frame_exit;
 	}
 
-	return_value = gif__parse_image_descriptor(gif, &gif->frames[frame], false);
+	return_value = gif__parse_image_descriptor(gif, frame, false);
 	if (return_value != GIF_OK) {
 		return return_value;
 	}
 
-	return_value = gif__parse_colour_table(gif, &gif->frames[frame], true);
+	return_value = gif__parse_colour_table(gif, frame, true);
 	if (return_value != GIF_OK) {
 		return return_value;
 	}
 	gif_data = gif->gif_data + gif->buffer_position;
 	gif_bytes = (gif_end - gif_data);
 
-	offset_x = gif->frames[frame].redraw_x;
-	offset_y = gif->frames[frame].redraw_y;
-	width = gif->frames[frame].redraw_width;
-	height = gif->frames[frame].redraw_height;
+	offset_x = frame->redraw_x;
+	offset_y = frame->redraw_y;
+	width = frame->redraw_width;
+	height = frame->redraw_height;
 
 	colour_table = gif->colour_table;
 
@@ -919,7 +916,7 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	for (uint32_t y = 0; y < height; y++) {
 		uint32_t *frame_scanline;
 		frame_scanline = frame_data + offset_x + ((offset_y + y) * gif->width);
-		if (gif->frames[frame].transparency) {
+		if (frame->transparency) {
 			memset(frame_scanline,
 			       GIF_TRANSPARENT_COLOUR,
 			       width * 4);
@@ -1063,7 +1060,7 @@ gif_internal_decode_frame(gif_animation *gif,
 		/* memset((char*)frame_data, colour_table[gif->background_index], gif->width * gif->height * sizeof(int)); */
 	} else if ((frame != 0) &&
 		   (gif->frames[frame - 1].disposal_method == GIF_FRAME_CLEAR)) {
-		return_value = gif_clear_frame(gif, frame - 1);
+		return_value = gif_clear_frame(gif, &gif->frames[frame - 1]);
 		if (return_value != GIF_OK) {
 			goto gif_decode_frame_exit;
 		}
