@@ -1043,15 +1043,11 @@ gif_internal_decode_frame(gif_animation *gif,
 	 * the background colour or this is the first frame, clear
 	 * the frame data
 	 */
-	if ((frame == 0) || (gif->decoded_frame == GIF_INVALID_FRAME)) {
+	if (frame == 0 || gif->decoded_frame == GIF_INVALID_FRAME) {
 		memset((char*)frame_data,
 		       GIF_TRANSPARENT_COLOUR,
-		       gif->width * gif->height * sizeof(int));
-		gif->decoded_frame = frame;
-		/* The line below would fill the image with its
-		 * background color, but because GIFs support
-		 * transparency we likely wouldn't want to do that. */
-		/* memset((char*)frame_data, colour_table[gif->background_index], gif->width * gif->height * sizeof(int)); */
+		       gif->width * gif->height * sizeof(*frame_data));
+
 	} else if ((frame != 0) &&
 		   (gif->frames[frame - 1].disposal_method == GIF_FRAME_CLEAR)) {
 		ret = gif_clear_frame(gif, &gif->frames[frame - 1], frame_data);
