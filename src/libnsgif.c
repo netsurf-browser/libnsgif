@@ -849,7 +849,6 @@ static gif_result gif_clear_frame(
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
-	uint32_t *colour_table;
 	uint32_t save_buffer_position;
 
 	assert(frame->disposal_method == GIF_FRAME_CLEAR);
@@ -879,7 +878,7 @@ static gif_result gif_clear_frame(
 		goto gif_decode_frame_exit;
 	}
 
-	ret = gif__parse_colour_table(gif, frame, true);
+	ret = gif__parse_colour_table(gif, frame, false);
 	if (ret != GIF_OK) {
 		goto gif_decode_frame_exit;
 	}
@@ -890,8 +889,6 @@ static gif_result gif_clear_frame(
 	offset_y = frame->redraw_y;
 	width = frame->redraw_width;
 	height = frame->redraw_height;
-
-	colour_table = gif->colour_table;
 
 	/* Ensure sufficient data remains */
 	if (gif_bytes < 1) {
@@ -907,16 +904,14 @@ static gif_result gif_clear_frame(
 
 	/* Clear our frame */
 	for (uint32_t y = 0; y < height; y++) {
-		uint32_t *frame_scanline;
-		frame_scanline = bitmap + offset_x + ((offset_y + y) * gif->width);
+		uint32_t *scanline;
+		scanline = bitmap + offset_x + ((offset_y + y) * gif->width);
 		if (frame->transparency) {
-			memset(frame_scanline,
-			       GIF_TRANSPARENT_COLOUR,
-			       width * 4);
+			memset(scanline, GIF_TRANSPARENT_COLOUR, width * 4);
 		} else {
-			memset(frame_scanline,
-			       colour_table[gif->background_index],
-			       width * 4);
+			for (uint32_t x = 0; x < width; x++) {
+				scanline[x] = gif->bg_colour;
+			}
 		}
 	}
 
@@ -1208,7 +1203,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 		gif->height = gif_data[2] | (gif_data[3] << 8);
 		gif->global_colours = (gif_data[4] & GIF_COLOUR_TABLE_MASK);
 		gif->colour_table_size = (2 << (gif_data[4] & GIF_COLOUR_TABLE_SIZE_MASK));
-		gif->background_index = gif_data[5];
+		gif->bg_index = gif_data[5];
 		gif->aspect_ratio = gif_data[6];
 		gif->loop_count = 1;
 		gif_data += 7;
@@ -1311,6 +1306,14 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 			((uint8_t *) entry)[3] = 0xff;
 
 			entry[1] = 0xffffffff;
+		}
+
+		if (gif->global_colours &&
+		    gif->bg_index < gif->colour_table_size) {
+			size_t bg_idx = gif->bg_index;
+			gif->bg_colour = gif->global_colour_table[bg_idx];
+		} else {
+			gif->bg_colour = gif->global_colour_table[0];
 		}
 	}
 

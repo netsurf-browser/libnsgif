@@ -126,8 +126,10 @@ typedef struct gif_animation {
         unsigned int buffer_size;
         /** current number of frame holders */
         unsigned int frame_holders;
-        /** index in the colour table for the background colour */
-        unsigned int background_index;
+        /** background index */
+        unsigned int bg_index;
+        /** background colour */
+        unsigned int bg_colour;
         /** image aspect ratio (ignored) */
         unsigned int aspect_ratio;
         /** size of colour table (in entries) */
