@@ -928,6 +928,20 @@ gif_decode_frame_exit:
 }
 
 /**
+ * Wipe bitmap to transparent.
+ *
+ * \param[in] gif     The gif object we're decoding.
+ * \param[in] bitmap  The bitmap to wipe.
+ */
+static inline void gif__wipe_bitmap(
+		const struct gif_animation *gif,
+		uint32_t *bitmap)
+{
+	memset((char*)bitmap, GIF_TRANSPARENT_COLOUR,
+			gif->width * gif->height * sizeof(*bitmap));
+}
+
+/**
  * decode a gif frame
  *
  * \param gif gif animation context.
@@ -1045,9 +1059,7 @@ gif_internal_decode_frame(gif_animation *gif,
 	/* Handle any bitmap clearing/restoration required before decoding this
 	 * frame. */
 	if (frame_idx == 0 || gif->decoded_frame == GIF_INVALID_FRAME) {
-		memset((char*)frame_data,
-		       GIF_TRANSPARENT_COLOUR,
-		       gif->width * gif->height * sizeof(*frame_data));
+		gif__wipe_bitmap(gif, frame_data);
 
 	} else {
 		struct gif_frame *prev = &gif->frames[frame_idx - 1];
@@ -1064,12 +1076,7 @@ gif_internal_decode_frame(gif_animation *gif,
 			 */
 			ret = gif__recover_previous_frame(gif);
 			if (ret != GIF_OK) {
-				/* see notes above on transparency
-				 * vs. background color
-				 */
-				memset((char*)frame_data,
-				       GIF_TRANSPARENT_COLOUR,
-				       gif->width * gif->height * sizeof(int));
+				gif__wipe_bitmap(gif, frame_data);
 			}
 		}
 	}
