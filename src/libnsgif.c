@@ -498,14 +498,6 @@ static gif_result gif_initialise_frame(gif_animation *gif)
 	if (return_value != GIF_OK) {
 		return return_value;
 	}
-	gif_data = (gif->gif_data + gif->buffer_position);
-	gif_bytes = (gif_end - gif_data);
-
-	if (gif_data[0] == GIF_TRAILER) {
-		gif->buffer_position = (gif_data - gif->gif_data);
-		gif->frame_count = frame + 1;
-		return GIF_OK;
-	}
 
 	return_value = gif__parse_image_descriptor(gif, &gif->frames[frame], true);
 	if (return_value != GIF_OK) {
