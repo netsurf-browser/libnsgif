@@ -850,6 +850,8 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	uint32_t save_buffer_position;
 	uint32_t return_value = 0;
 
+	assert(gif->frames[frame].disposal_method == GIF_FRAME_CLEAR);
+
 	/* Ensure this frame is supposed to be decoded */
 	if (gif->frames[frame].display == false) {
 		return GIF_OK;
@@ -914,22 +916,20 @@ gif_clear_frame(gif_animation *gif, uint32_t frame)
 	}
 
 	/* Clear our frame */
-	if (gif->frames[frame].disposal_method == GIF_FRAME_CLEAR) {
-		uint32_t y;
-		for (y = 0; y < height; y++) {
-			uint32_t *frame_scanline;
-			frame_scanline = frame_data + offset_x + ((offset_y + y) * gif->width);
-			if (gif->frames[frame].transparency) {
-				memset(frame_scanline,
-				       GIF_TRANSPARENT_COLOUR,
-				       width * 4);
-			} else {
-				memset(frame_scanline,
-				       colour_table[gif->background_index],
-				       width * 4);
-			}
+	for (uint32_t y = 0; y < height; y++) {
+		uint32_t *frame_scanline;
+		frame_scanline = frame_data + offset_x + ((offset_y + y) * gif->width);
+		if (gif->frames[frame].transparency) {
+			memset(frame_scanline,
+			       GIF_TRANSPARENT_COLOUR,
+			       width * 4);
+		} else {
+			memset(frame_scanline,
+			       colour_table[gif->background_index],
+			       width * 4);
 		}
 	}
+
 gif_decode_frame_exit:
 	/* Restore the buffer position */
 	gif->buffer_position = save_buffer_position;
