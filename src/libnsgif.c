@@ -846,11 +846,7 @@ static gif_result gif_clear_frame(
 		struct gif_frame *frame,
 		uint32_t *bitmap)
 {
-	gif_result ret;
-	uint8_t *gif_data, *gif_end;
-	int gif_bytes;
 	uint32_t width, height, offset_x, offset_y;
-	uint32_t save_buffer_position;
 
 	assert(frame->disposal_method == GIF_FRAME_CLEAR);
 
@@ -859,49 +855,10 @@ static gif_result gif_clear_frame(
 		return GIF_OK;
 	}
 
-	/* Get the start of our frame data and the end of the GIF data */
-	gif_data = gif->gif_data + frame->frame_pointer;
-	gif_end = gif->gif_data + gif->buffer_size;
-	gif_bytes = (gif_end - gif_data);
-
-	/* Save the buffer position */
-	save_buffer_position = gif->buffer_position;
-	gif->buffer_position = gif_data - gif->gif_data;
-
-	/* Skip any extensions because they have already been processed */
-	ret = gif__parse_frame_extensions(gif, frame, false);
-	if (ret != GIF_OK) {
-		goto gif_decode_frame_exit;
-	}
-
-	ret = gif__parse_image_descriptor(gif, frame, false);
-	if (ret != GIF_OK) {
-		goto gif_decode_frame_exit;
-	}
-
-	ret = gif__parse_colour_table(gif, frame, false);
-	if (ret != GIF_OK) {
-		goto gif_decode_frame_exit;
-	}
-	gif_data = gif->gif_data + gif->buffer_position;
-	gif_bytes = (gif_end - gif_data);
-
 	offset_x = frame->redraw_x;
 	offset_y = frame->redraw_y;
 	width = frame->redraw_width;
 	height = frame->redraw_height;
-
-	/* Ensure sufficient data remains */
-	if (gif_bytes < 1) {
-		ret = GIF_INSUFFICIENT_FRAME_DATA;
-		goto gif_decode_frame_exit;
-	}
-
-	/* check for an end marker */
-	if (gif_data[0] == GIF_TRAILER) {
-		ret = GIF_OK;
-		goto gif_decode_frame_exit;
-	}
 
 	/* Clear our frame */
 	for (uint32_t y = 0; y < height; y++) {
@@ -916,11 +873,7 @@ static gif_result gif_clear_frame(
 		}
 	}
 
-gif_decode_frame_exit:
-	/* Restore the buffer position */
-	gif->buffer_position = save_buffer_position;
-
-	return ret;
+	return GIF_OK;
 }
 
 /**
