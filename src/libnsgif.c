@@ -45,12 +45,15 @@
 /** No transparency */
 #define GIF_NO_TRANSPARENCY (0xFFFFFFFFu)
 
-/* GIF Flags */
-#define GIF_FRAME_COMBINE 1
-#define GIF_FRAME_CLEAR 2
-#define GIF_FRAME_RESTORE 3
-#define GIF_FRAME_QUIRKS_RESTORE 4
+enum gif_disposal {
+	GIF_DISPOSAL_UNSPECIFIED,
+	GIF_DISPOSAL_NONE,
+	GIF_DISPOSAL_RESTORE_BG,
+	GIF_DISPOSAL_RESTORE_PREV,
+	GIF_DISPOSAL_RESTORE_QUIRK, /**< Alias for GIF_DISPOSAL_RESTORE_PREV. */
+};
 
+/* GIF Flags */
 #define GIF_INTERLACE_MASK 0x40
 #define GIF_COLOUR_TABLE_MASK 0x80
 #define GIF_COLOUR_TABLE_SIZE_MASK 0x07
@@ -138,15 +141,15 @@ static gif_result gif__parse_extension_graphic_control(
 	 * believe some (older?)  software may even actually
 	 * export this way.  We handle this as a type of
 	 * "quirks" mode. */
-	if (frame->disposal_method == GIF_FRAME_QUIRKS_RESTORE) {
-		frame->disposal_method = GIF_FRAME_RESTORE;
+	if (frame->disposal_method == GIF_DISPOSAL_RESTORE_QUIRK) {
+		frame->disposal_method = GIF_DISPOSAL_RESTORE_PREV;
 	}
 
 	/* if we are clearing the background then we need to
 	 * redraw enough to cover the previous frame too. */
 	frame->redraw_required =
-			frame->disposal_method == GIF_FRAME_CLEAR ||
-			frame->disposal_method == GIF_FRAME_RESTORE;
+			frame->disposal_method == GIF_DISPOSAL_RESTORE_BG ||
+			frame->disposal_method == GIF_DISPOSAL_RESTORE_PREV;
 
 	return GIF_OK;
 }
@@ -855,7 +858,7 @@ static void gif_clear_frame(
 	uint32_t offset_x;
 	uint32_t offset_y;
 
-	assert(frame->disposal_method == GIF_FRAME_CLEAR);
+	assert(frame->disposal_method == GIF_DISPOSAL_RESTORE_BG);
 
 	/* Ensure this frame is supposed to be decoded */
 	if (frame->display == false) {
@@ -1010,10 +1013,10 @@ gif_internal_decode_frame(gif_animation *gif,
 	} else {
 		struct gif_frame *prev = &gif->frames[frame_idx - 1];
 
-		if (prev->disposal_method == GIF_FRAME_CLEAR) {
+		if (prev->disposal_method == GIF_DISPOSAL_RESTORE_BG) {
 			gif_clear_frame(gif, prev, frame_data);
 
-		} else if (prev->disposal_method == GIF_FRAME_RESTORE) {
+		} else if (prev->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
 			/*
 			 * If the previous frame's disposal method requires we
 			 * restore the previous image, restore our saved image.
@@ -1025,7 +1028,7 @@ gif_internal_decode_frame(gif_animation *gif,
 		}
 	}
 
-	if (frame->disposal_method == GIF_FRAME_RESTORE) {
+	if (frame->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
 		/* Store the previous frame for later restoration */
 		gif__record_frame(gif);
 	}
