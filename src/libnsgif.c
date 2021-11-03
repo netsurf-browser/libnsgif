@@ -70,6 +70,21 @@ enum gif_disposal {
 /** standard GIF header size */
 #define GIF_STANDARD_HEADER_SIZE 13
 
+static gif_result gif_error_from_lzw(lzw_result l_res)
+{
+	static const gif_result g_res[] = {
+		[LZW_OK]	= GIF_OK,
+		[LZW_OK_EOD]    = GIF_END_OF_FRAME,
+		[LZW_NO_MEM]    = GIF_INSUFFICIENT_MEMORY,
+		[LZW_NO_DATA]   = GIF_INSUFFICIENT_FRAME_DATA,
+		[LZW_EOI_CODE]  = GIF_FRAME_DATA_ERROR,
+		[LZW_BAD_ICODE] = GIF_FRAME_DATA_ERROR,
+		[LZW_BAD_CODE]  = GIF_FRAME_DATA_ERROR,
+	};
+	assert(l_res != LZW_BAD_PARAM);
+	assert(l_res != LZW_NO_COLOUR);
+	return g_res[l_res];
+}
 
 /**
  * Updates the sprite memory size
@@ -79,10 +94,10 @@ enum gif_disposal {
  * \param height The height of the sprite
  * \return GIF_INSUFFICIENT_MEMORY for a memory error GIF_OK for success
  */
-static gif_result
-gif_initialise_sprite(gif_animation *gif,
-		      uint32_t width,
-		      uint32_t height)
+static gif_result gif_initialise_sprite(
+		struct gif_animation *gif,
+		uint32_t width,
+		uint32_t height)
 {
 	/* Already allocated? */
 	if (gif->frame_image) {
@@ -96,6 +111,407 @@ gif_initialise_sprite(gif_animation *gif,
 	}
 
 	return GIF_OK;
+}
+
+/**
+ * Helper to get the rendering bitmap for a gif.
+ *
+ * \param[in]  gif  The gif object we're decoding.
+ * \return Client pixel buffer for rendering into.
+ */
+static inline uint32_t* gif__bitmap_get(
+		struct gif_animation *gif)
+{
+	gif_result ret;
+
+	/* Make sure we have a buffer to decode to. */
+	ret = gif_initialise_sprite(gif, gif->width, gif->height);
+	if (ret != GIF_OK) {
+		return NULL;
+	}
+
+	/* Get the frame data */
+	assert(gif->bitmap_callbacks.bitmap_get_buffer);
+	return (uint32_t *)gif->bitmap_callbacks.bitmap_get_buffer(
+			gif->frame_image);
+}
+
+/**
+ * Helper to tell the client that their bitmap was modified.
+ *
+ * \param[in]  gif  The gif object we're decoding.
+ */
+static inline void gif__bitmap_modified(
+		const struct gif_animation *gif)
+{
+	if (gif->bitmap_callbacks.bitmap_modified) {
+		gif->bitmap_callbacks.bitmap_modified(gif->frame_image);
+	}
+}
+
+/**
+ * Helper to tell the client that whether the bitmap is opaque.
+ *
+ * \param[in]  gif    The gif object we're decoding.
+ * \param[in]  frmae  The frame that has been decoded.
+ */
+static inline void gif__bitmap_set_opaque(
+		const struct gif_animation *gif,
+		const struct gif_frame *frame)
+{
+	if (gif->bitmap_callbacks.bitmap_set_opaque) {
+		gif->bitmap_callbacks.bitmap_set_opaque(
+				gif->frame_image, frame->opaque);
+	}
+}
+
+/**
+ * Helper to get the client to determine if the bitmap is opaque.
+ *
+ * \todo: We don't really need to get the client to do this for us.
+ *
+ * \param[in]  gif    The gif object we're decoding.
+ * \return true if the bitmap is opaque, false otherwise.
+ */
+static inline bool gif__bitmap_get_opaque(
+		const struct gif_animation *gif)
+{
+	if (gif->bitmap_callbacks.bitmap_test_opaque) {
+		return gif->bitmap_callbacks.bitmap_test_opaque(
+				gif->frame_image);
+	}
+
+	return false;
+}
+
+static void gif__record_frame(
+		struct gif_animation *gif,
+		const uint32_t *bitmap)
+{
+	bool need_alloc = gif->prev_frame == NULL;
+	uint32_t *prev_frame;
+
+	if (gif->decoded_frame == GIF_INVALID_FRAME ||
+	    gif->decoded_frame == gif->prev_index) {
+		/* No frame to copy, or already have this frame recorded. */
+		return;
+	}
+
+	bitmap = gif__bitmap_get(gif);
+	if (bitmap == NULL) {
+		return;
+	}
+
+	if (gif->prev_frame != NULL &&
+	    gif->width * gif->height > gif->prev_width * gif->prev_height) {
+		need_alloc = true;
+	}
+
+	if (need_alloc) {
+		prev_frame = realloc(gif->prev_frame,
+				gif->width * gif->height * 4);
+		if (prev_frame == NULL) {
+			return;
+		}
+	} else {
+		prev_frame = gif->prev_frame;
+	}
+
+	memcpy(prev_frame, bitmap, gif->width * gif->height * 4);
+
+	gif->prev_frame  = prev_frame;
+	gif->prev_width  = gif->width;
+	gif->prev_height = gif->height;
+	gif->prev_index  = gif->decoded_frame;
+}
+
+static gif_result gif__recover_frame(
+		const struct gif_animation *gif,
+		uint32_t *bitmap)
+{
+	const uint32_t *prev_frame = gif->prev_frame;
+	unsigned height = gif->height < gif->prev_height ? gif->height : gif->prev_height;
+	unsigned width  = gif->width  < gif->prev_width  ? gif->width  : gif->prev_width;
+
+	if (prev_frame == NULL) {
+		return GIF_FRAME_DATA_ERROR;
+	}
+
+	for (unsigned y = 0; y < height; y++) {
+		memcpy(bitmap, prev_frame, width * 4);
+
+		bitmap += gif->width;
+		prev_frame += gif->prev_width;
+	}
+
+	return GIF_OK;
+}
+
+static uint32_t gif_interlaced_line(int height, int y)
+{
+	if ((y << 3) < height) {
+		return (y << 3);
+	}
+	y -= ((height + 7) >> 3);
+	if ((y << 3) < (height - 4)) {
+		return (y << 3) + 4;
+	}
+	y -= ((height + 3) >> 3);
+	if ((y << 2) < (height - 2)) {
+		return (y << 2) + 2;
+	}
+	y -= ((height + 1) >> 2);
+	return (y << 1) + 1;
+}
+
+static gif_result gif__decode_complex(
+		struct gif_animation *gif,
+		uint32_t width,
+		uint32_t height,
+		uint32_t offset_x,
+		uint32_t offset_y,
+		uint32_t interlace,
+		uint8_t minimum_code_size,
+		uint32_t transparency_index,
+		uint32_t *restrict frame_data,
+		uint32_t *restrict colour_table)
+{
+	uint32_t available = 0;
+	gif_result ret = GIF_OK;
+	lzw_result res;
+
+	/* Initialise the LZW decoding */
+	res = lzw_decode_init(gif->lzw_ctx, minimum_code_size,
+			gif->gif_data, gif->buffer_size, gif->buffer_position);
+	if (res != LZW_OK) {
+		return gif_error_from_lzw(res);
+	}
+
+	for (uint32_t y = 0; y < height; y++) {
+		uint32_t x;
+		uint32_t decode_y;
+		uint32_t *frame_scanline;
+
+		if (interlace) {
+			decode_y = gif_interlaced_line(height, y) + offset_y;
+		} else {
+			decode_y = y + offset_y;
+		}
+		frame_scanline = frame_data + offset_x + (decode_y * gif->width);
+
+		x = width;
+		while (x > 0) {
+			const uint8_t *uncompressed;
+			unsigned row_available;
+			if (available == 0) {
+				if (res != LZW_OK) {
+					/* Unexpected end of frame, try to recover */
+					if (res == LZW_OK_EOD) {
+						ret = GIF_OK;
+					} else {
+						ret = gif_error_from_lzw(res);
+					}
+					break;
+				}
+				res = lzw_decode(gif->lzw_ctx,
+						&uncompressed, &available);
+			}
+
+			row_available = x < available ? x : available;
+			x -= row_available;
+			available -= row_available;
+			if (transparency_index > 0xFF) {
+				while (row_available-- > 0) {
+					*frame_scanline++ =
+						colour_table[*uncompressed++];
+				}
+			} else {
+				while (row_available-- > 0) {
+					register uint32_t colour;
+					colour = *uncompressed++;
+					if (colour != transparency_index) {
+						*frame_scanline =
+							colour_table[colour];
+					}
+					frame_scanline++;
+				}
+			}
+		}
+	}
+	return ret;
+}
+
+static gif_result gif__decode_simple(
+		struct gif_animation *gif,
+		uint32_t height,
+		uint32_t offset_y,
+		uint8_t minimum_code_size,
+		uint32_t transparency_index,
+		uint32_t *restrict frame_data,
+		uint32_t *restrict colour_table)
+{
+	uint32_t pixels = gif->width * height;
+	uint32_t written = 0;
+	gif_result ret = GIF_OK;
+	lzw_result res;
+
+	/* Initialise the LZW decoding */
+	res = lzw_decode_init_map(gif->lzw_ctx,
+			minimum_code_size, transparency_index, colour_table,
+			gif->gif_data, gif->buffer_size, gif->buffer_position);
+	if (res != LZW_OK) {
+		return gif_error_from_lzw(res);
+	}
+
+	frame_data += (offset_y * gif->width);
+
+	while (pixels > 0) {
+		res = lzw_decode_map(gif->lzw_ctx,
+				frame_data, pixels, &written);
+		pixels -= written;
+		frame_data += written;
+		if (res != LZW_OK) {
+			/* Unexpected end of frame, try to recover */
+			if (res == LZW_OK_EOD) {
+				ret = GIF_OK;
+			} else {
+				ret = gif_error_from_lzw(res);
+			}
+			break;
+		}
+	}
+
+	if (pixels == 0) {
+		ret = GIF_OK;
+	}
+
+	return ret;
+}
+
+static inline gif_result gif__decode(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
+		uint8_t minimum_code_size,
+		uint32_t *restrict frame_data)
+{
+	gif_result ret;
+	uint32_t offset_x = frame->redraw_x;
+	uint32_t offset_y = frame->redraw_y;
+	uint32_t width = frame->redraw_width;
+	uint32_t height = frame->redraw_height;
+	uint32_t interlace = frame->flags & GIF_INTERLACE_MASK;
+	uint32_t transparency_index = frame->transparency_index;
+	uint32_t *restrict colour_table = gif->colour_table;
+
+	if (interlace == false && width == gif->width && offset_x == 0) {
+		ret = gif__decode_simple(gif, height, offset_y,
+				minimum_code_size, transparency_index,
+				frame_data, colour_table);
+	} else {
+		ret = gif__decode_complex(gif, width, height,
+				offset_x, offset_y, interlace,
+				minimum_code_size, transparency_index,
+				frame_data, colour_table);
+	}
+
+	return ret;
+}
+
+/**
+ * Restore a GIF to the background colour.
+ *
+ * \param[in] gif     The gif object we're decoding.
+ * \param[in] frame   The frame to clear, or NULL.
+ * \param[in] bitmap  The bitmap to clear the frame in.
+ */
+static void gif__restore_bg(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
+		uint32_t *bitmap)
+{
+	if (frame == NULL) {
+		memset(bitmap, GIF_TRANSPARENT_COLOUR,
+				gif->width * gif->height * sizeof(*bitmap));
+	} else {
+		uint32_t offset_x = frame->redraw_x;
+		uint32_t offset_y = frame->redraw_y;
+		uint32_t width = frame->redraw_width;
+		uint32_t height = frame->redraw_height;
+
+		if (frame->display == false) {
+			return;
+		}
+
+		if (frame->transparency) {
+			for (uint32_t y = 0; y < height; y++) {
+				uint32_t *scanline = bitmap + offset_x +
+						(offset_y + y) * gif->width;
+				memset(scanline, GIF_TRANSPARENT_COLOUR,
+						width * sizeof(*bitmap));
+			}
+		} else {
+			for (uint32_t y = 0; y < height; y++) {
+				uint32_t *scanline = bitmap + offset_x +
+						(offset_y + y) * gif->width;
+				for (uint32_t x = 0; x < width; x++) {
+					scanline[x] = gif->bg_colour;
+				}
+			}
+		}
+	}
+}
+
+static gif_result gif__update_bitmap(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
+		uint8_t minimum_code_size,
+		uint32_t frame_idx)
+{
+	gif_result ret;
+	uint32_t *bitmap;
+
+	gif->decoded_frame = frame_idx;
+
+	bitmap = gif__bitmap_get(gif);
+	if (bitmap == NULL) {
+		return GIF_INSUFFICIENT_MEMORY;
+	}
+
+	/* Handle any bitmap clearing/restoration required before decoding this
+	 * frame. */
+	if (frame_idx == 0 || gif->decoded_frame == GIF_INVALID_FRAME) {
+		gif__restore_bg(gif, NULL, bitmap);
+
+	} else {
+		struct gif_frame *prev = &gif->frames[frame_idx - 1];
+
+		if (prev->disposal_method == GIF_DISPOSAL_RESTORE_BG) {
+			gif__restore_bg(gif, prev, bitmap);
+
+		} else if (prev->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
+			ret = gif__recover_frame(gif, bitmap);
+			if (ret != GIF_OK) {
+				gif__restore_bg(gif, prev, bitmap);
+			}
+		}
+	}
+
+	if (frame->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
+		/* Store the previous frame for later restoration */
+		gif__record_frame(gif, bitmap);
+	}
+
+	ret = gif__decode(gif, frame, minimum_code_size, bitmap);
+
+	gif__bitmap_modified(gif);
+
+	if (frame->virgin) {
+		frame->opaque = gif__bitmap_get_opaque(gif);
+		frame->virgin = false;
+	}
+	gif__bitmap_set_opaque(gif, frame);
+
+	return ret;
 }
 
 /**
@@ -411,6 +827,104 @@ static gif_result gif__parse_colour_table(
 	return GIF_OK;
 }
 
+/**
+ * Parse the image data for a gif frame.
+ *
+ * Sets up gif->colour_table for the frame.
+ *
+ * \param[in] gif    The gif object we're decoding.
+ * \param[in] frame  The frame to get the colour table for.
+ * \return GIF_OK on success, appropriate error otherwise.
+ */
+static gif_result gif__parse_image_data(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
+		bool decode)
+{
+	uint8_t *data = gif->gif_data + gif->buffer_position;
+	size_t len = gif->buffer_size - gif->buffer_position;
+	uint32_t frame_idx = frame - gif->frames;
+	uint8_t minimum_code_size;
+	gif_result ret;
+
+	assert(gif != NULL);
+	assert(frame != NULL);
+
+	if (!decode) {
+		gif->frame_count_partial = frame_idx + 1;
+	}
+
+	/* Ensure sufficient data remains.  A gif trailer or a minimum lzw code
+	 * followed by a gif trailer is treated as OK, although without any
+	 * image data. */
+	switch (len) {
+		default: if (data[0] == GIF_TRAILER) return GIF_OK;
+			break;
+		case 2: if (data[1] == GIF_TRAILER) return GIF_OK;
+			/* Fall through. */
+		case 1: if (data[0] == GIF_TRAILER) return GIF_OK;
+			/* Fall through. */
+		case 0: return GIF_INSUFFICIENT_FRAME_DATA;
+	}
+
+	minimum_code_size = data[0];
+	if (minimum_code_size >= LZW_CODE_MAX) {
+		return GIF_DATA_ERROR;
+	}
+	gif->buffer_position++;
+	data++;
+	len--;
+
+	if (decode) {
+		ret = gif__update_bitmap(gif, frame, minimum_code_size,
+				frame_idx);
+	} else {
+		uint32_t block_size = 0;
+
+		while (block_size != 1) {
+			if (len < 1) return GIF_INSUFFICIENT_FRAME_DATA;
+			block_size = data[0] + 1;
+			/* Check if the frame data runs off the end of the file	*/
+			if ((int)(len - block_size) < 0) {
+				/* Try to recover by signaling the end of the gif.
+				 * Once we get garbage data, there is no logical way to
+				 * determine where the next frame is.  It's probably
+				 * better to partially load the gif than not at all.
+				 */
+				if (len >= 2) {
+					data[0] = 0;
+					data[1] = GIF_TRAILER;
+					len = 1;
+					data++;
+					break;
+				} else {
+					return GIF_INSUFFICIENT_FRAME_DATA;
+				}
+			} else {
+				len -= block_size;
+				data += block_size;
+			}
+		}
+
+		gif->buffer_position = data - gif->gif_data;
+		gif->frame_count = frame_idx + 1;
+		gif->frames[frame_idx].display = true;
+
+		/* Check if we've finished */
+		if (len < 1) {
+			return GIF_INSUFFICIENT_FRAME_DATA;
+		} else {
+			if (data[0] == GIF_TRAILER) {
+				return GIF_OK;
+			}
+		}
+
+		return GIF_WORKING;
+	}
+
+	return ret;
+}
+
 static struct gif_frame *gif__get_frame(
 		struct gif_animation *gif,
 		uint32_t frame_idx)
@@ -460,7 +974,8 @@ static struct gif_frame *gif__get_frame(
  *         - GIF_OK for successful decoding
  *         - GIF_WORKING for successful decoding if more frames are expected
 */
-static gif_result gif_initialise_frame(gif_animation *gif,
+static gif_result gif_initialise_frame(
+		struct gif_animation *gif,
 		uint32_t frame_idx)
 {
 	gif_result ret;
@@ -584,524 +1099,6 @@ static gif_result gif_initialise_frame(gif_animation *gif,
 	return GIF_WORKING;
 }
 
-static uint32_t gif_interlaced_line(int height, int y)
-{
-	if ((y << 3) < height) {
-		return (y << 3);
-	}
-	y -= ((height + 7) >> 3);
-	if ((y << 3) < (height - 4)) {
-		return (y << 3) + 4;
-	}
-	y -= ((height + 3) >> 3);
-	if ((y << 2) < (height - 2)) {
-		return (y << 2) + 2;
-	}
-	y -= ((height + 1) >> 2);
-	return (y << 1) + 1;
-}
-
-
-static gif_result gif_error_from_lzw(lzw_result l_res)
-{
-	static const gif_result g_res[] = {
-		[LZW_OK]	= GIF_OK,
-		[LZW_OK_EOD]    = GIF_END_OF_FRAME,
-		[LZW_NO_MEM]    = GIF_INSUFFICIENT_MEMORY,
-		[LZW_NO_DATA]   = GIF_INSUFFICIENT_FRAME_DATA,
-		[LZW_EOI_CODE]  = GIF_FRAME_DATA_ERROR,
-		[LZW_BAD_ICODE] = GIF_FRAME_DATA_ERROR,
-		[LZW_BAD_CODE]  = GIF_FRAME_DATA_ERROR,
-	};
-	assert(l_res != LZW_BAD_PARAM);
-	assert(l_res != LZW_NO_COLOUR);
-	return g_res[l_res];
-}
-
-/**
- * Helper to get the rendering bitmap for a gif.
- *
- * \param[in]  gif  The gif object we're decoding.
- * \return Client pixel buffer for rendering into.
- */
-static inline uint32_t* gif__bitmap_get(
-		struct gif_animation *gif)
-{
-	gif_result ret;
-
-	/* Make sure we have a buffer to decode to. */
-	ret = gif_initialise_sprite(gif, gif->width, gif->height);
-	if (ret != GIF_OK) {
-		return NULL;
-	}
-
-	/* Get the frame data */
-	assert(gif->bitmap_callbacks.bitmap_get_buffer);
-	return (uint32_t *)gif->bitmap_callbacks.bitmap_get_buffer(
-			gif->frame_image);
-}
-
-/**
- * Helper to tell the client that their bitmap was modified.
- *
- * \param[in]  gif  The gif object we're decoding.
- */
-static inline void gif__bitmap_modified(
-		const struct gif_animation *gif)
-{
-	if (gif->bitmap_callbacks.bitmap_modified) {
-		gif->bitmap_callbacks.bitmap_modified(gif->frame_image);
-	}
-}
-
-/**
- * Helper to tell the client that whether the bitmap is opaque.
- *
- * \param[in]  gif    The gif object we're decoding.
- * \param[in]  frmae  The frame that has been decoded.
- */
-static inline void gif__bitmap_set_opaque(
-		const struct gif_animation *gif,
-		const struct gif_frame *frame)
-{
-	if (gif->bitmap_callbacks.bitmap_set_opaque) {
-		gif->bitmap_callbacks.bitmap_set_opaque(
-				gif->frame_image, frame->opaque);
-	}
-}
-
-/**
- * Helper to get the client to determine if the bitmap is opaque.
- *
- * \todo: We don't really need to get the client to do this for us.
- *
- * \param[in]  gif    The gif object we're decoding.
- * \return true if the bitmap is opaque, false otherwise.
- */
-static inline bool gif__bitmap_get_opaque(
-		const struct gif_animation *gif)
-{
-	if (gif->bitmap_callbacks.bitmap_test_opaque) {
-		return gif->bitmap_callbacks.bitmap_test_opaque(
-				gif->frame_image);
-	}
-
-	return false;
-}
-
-static void gif__record_frame(
-		struct gif_animation *gif,
-		const uint32_t *bitmap)
-{
-	bool need_alloc = gif->prev_frame == NULL;
-	uint32_t *prev_frame;
-
-	if (gif->decoded_frame == GIF_INVALID_FRAME ||
-	    gif->decoded_frame == gif->prev_index) {
-		/* No frame to copy, or already have this frame recorded. */
-		return;
-	}
-
-	bitmap = gif__bitmap_get(gif);
-	if (bitmap == NULL) {
-		return;
-	}
-
-	if (gif->prev_frame != NULL &&
-	    gif->width * gif->height > gif->prev_width * gif->prev_height) {
-		need_alloc = true;
-	}
-
-	if (need_alloc) {
-		prev_frame = realloc(gif->prev_frame,
-				gif->width * gif->height * 4);
-		if (prev_frame == NULL) {
-			return;
-		}
-	} else {
-		prev_frame = gif->prev_frame;
-	}
-
-	memcpy(prev_frame, bitmap, gif->width * gif->height * 4);
-
-	gif->prev_frame  = prev_frame;
-	gif->prev_width  = gif->width;
-	gif->prev_height = gif->height;
-	gif->prev_index  = gif->decoded_frame;
-}
-
-static gif_result gif__recover_frame(
-		const struct gif_animation *gif,
-		uint32_t *bitmap)
-{
-	const uint32_t *prev_frame = gif->prev_frame;
-	unsigned height = gif->height < gif->prev_height ? gif->height : gif->prev_height;
-	unsigned width  = gif->width  < gif->prev_width  ? gif->width  : gif->prev_width;
-
-	if (prev_frame == NULL) {
-		return GIF_FRAME_DATA_ERROR;
-	}
-
-	for (unsigned y = 0; y < height; y++) {
-		memcpy(bitmap, prev_frame, width * 4);
-
-		bitmap += gif->width;
-		prev_frame += gif->prev_width;
-	}
-
-	return GIF_OK;
-}
-
-static gif_result
-gif__decode_complex(
-		struct gif_animation *gif,
-		uint32_t width,
-		uint32_t height,
-		uint32_t offset_x,
-		uint32_t offset_y,
-		uint32_t interlace,
-		uint8_t minimum_code_size,
-		uint32_t transparency_index,
-		uint32_t *restrict frame_data,
-		uint32_t *restrict colour_table)
-{
-	uint32_t available = 0;
-	gif_result ret = GIF_OK;
-	lzw_result res;
-
-	/* Initialise the LZW decoding */
-	res = lzw_decode_init(gif->lzw_ctx, minimum_code_size,
-			gif->gif_data, gif->buffer_size, gif->buffer_position);
-	if (res != LZW_OK) {
-		return gif_error_from_lzw(res);
-	}
-
-	for (uint32_t y = 0; y < height; y++) {
-		uint32_t x;
-		uint32_t decode_y;
-		uint32_t *frame_scanline;
-
-		if (interlace) {
-			decode_y = gif_interlaced_line(height, y) + offset_y;
-		} else {
-			decode_y = y + offset_y;
-		}
-		frame_scanline = frame_data + offset_x + (decode_y * gif->width);
-
-		x = width;
-		while (x > 0) {
-			const uint8_t *uncompressed;
-			unsigned row_available;
-			if (available == 0) {
-				if (res != LZW_OK) {
-					/* Unexpected end of frame, try to recover */
-					if (res == LZW_OK_EOD) {
-						ret = GIF_OK;
-					} else {
-						ret = gif_error_from_lzw(res);
-					}
-					break;
-				}
-				res = lzw_decode(gif->lzw_ctx,
-						&uncompressed, &available);
-			}
-
-			row_available = x < available ? x : available;
-			x -= row_available;
-			available -= row_available;
-			if (transparency_index > 0xFF) {
-				while (row_available-- > 0) {
-					*frame_scanline++ =
-						colour_table[*uncompressed++];
-				}
-			} else {
-				while (row_available-- > 0) {
-					register uint32_t colour;
-					colour = *uncompressed++;
-					if (colour != transparency_index) {
-						*frame_scanline =
-							colour_table[colour];
-					}
-					frame_scanline++;
-				}
-			}
-		}
-	}
-	return ret;
-}
-
-static gif_result
-gif__decode_simple(
-		struct gif_animation *gif,
-		uint32_t height,
-		uint32_t offset_y,
-		uint8_t minimum_code_size,
-		uint32_t transparency_index,
-		uint32_t *restrict frame_data,
-		uint32_t *restrict colour_table)
-{
-	uint32_t pixels = gif->width * height;
-	uint32_t written = 0;
-	gif_result ret = GIF_OK;
-	lzw_result res;
-
-	/* Initialise the LZW decoding */
-	res = lzw_decode_init_map(gif->lzw_ctx,
-			minimum_code_size, transparency_index, colour_table,
-			gif->gif_data, gif->buffer_size, gif->buffer_position);
-	if (res != LZW_OK) {
-		return gif_error_from_lzw(res);
-	}
-
-	frame_data += (offset_y * gif->width);
-
-	while (pixels > 0) {
-		res = lzw_decode_map(gif->lzw_ctx,
-				frame_data, pixels, &written);
-		pixels -= written;
-		frame_data += written;
-		if (res != LZW_OK) {
-			/* Unexpected end of frame, try to recover */
-			if (res == LZW_OK_EOD) {
-				ret = GIF_OK;
-			} else {
-				ret = gif_error_from_lzw(res);
-			}
-			break;
-		}
-	}
-
-	if (pixels == 0) {
-		ret = GIF_OK;
-	}
-
-	return ret;
-}
-
-static inline gif_result gif__decode(
-		struct gif_animation *gif,
-		struct gif_frame *frame,
-		uint8_t minimum_code_size,
-		uint32_t *restrict frame_data)
-{
-	gif_result ret;
-	uint32_t offset_x = frame->redraw_x;
-	uint32_t offset_y = frame->redraw_y;
-	uint32_t width = frame->redraw_width;
-	uint32_t height = frame->redraw_height;
-	uint32_t interlace = frame->flags & GIF_INTERLACE_MASK;
-	uint32_t transparency_index = frame->transparency_index;
-	uint32_t *restrict colour_table = gif->colour_table;
-
-	if (interlace == false && width == gif->width && offset_x == 0) {
-		ret = gif__decode_simple(gif, height, offset_y,
-				minimum_code_size, transparency_index,
-				frame_data, colour_table);
-	} else {
-		ret = gif__decode_complex(gif, width, height,
-				offset_x, offset_y, interlace,
-				minimum_code_size, transparency_index,
-				frame_data, colour_table);
-	}
-
-	return ret;
-}
-
-/**
- * Restore a GIF to the background colour.
- *
- * \param[in] gif     The gif object we're decoding.
- * \param[in] frame   The frame to clear, or NULL.
- * \param[in] bitmap  The bitmap to clear the frame in.
- */
-static void gif__restore_bg(
-		struct gif_animation *gif,
-		struct gif_frame *frame,
-		uint32_t *bitmap)
-{
-	if (frame == NULL) {
-		memset(bitmap, GIF_TRANSPARENT_COLOUR,
-				gif->width * gif->height * sizeof(*bitmap));
-	} else {
-		uint32_t offset_x = frame->redraw_x;
-		uint32_t offset_y = frame->redraw_y;
-		uint32_t width = frame->redraw_width;
-		uint32_t height = frame->redraw_height;
-
-		if (frame->display == false) {
-			return;
-		}
-
-		if (frame->transparency) {
-			for (uint32_t y = 0; y < height; y++) {
-				uint32_t *scanline = bitmap + offset_x +
-						(offset_y + y) * gif->width;
-				memset(scanline, GIF_TRANSPARENT_COLOUR,
-						width * sizeof(*bitmap));
-			}
-		} else {
-			for (uint32_t y = 0; y < height; y++) {
-				uint32_t *scanline = bitmap + offset_x +
-						(offset_y + y) * gif->width;
-				for (uint32_t x = 0; x < width; x++) {
-					scanline[x] = gif->bg_colour;
-				}
-			}
-		}
-	}
-}
-
-static gif_result gif__update_bitmap(
-		struct gif_animation *gif,
-		struct gif_frame *frame,
-		uint8_t minimum_code_size,
-		uint32_t frame_idx)
-{
-	gif_result ret;
-	uint32_t *bitmap;
-
-	gif->decoded_frame = frame_idx;
-
-	bitmap = gif__bitmap_get(gif);
-	if (bitmap == NULL) {
-		return GIF_INSUFFICIENT_MEMORY;
-	}
-
-	/* Handle any bitmap clearing/restoration required before decoding this
-	 * frame. */
-	if (frame_idx == 0 || gif->decoded_frame == GIF_INVALID_FRAME) {
-		gif__restore_bg(gif, NULL, bitmap);
-
-	} else {
-		struct gif_frame *prev = &gif->frames[frame_idx - 1];
-
-		if (prev->disposal_method == GIF_DISPOSAL_RESTORE_BG) {
-			gif__restore_bg(gif, prev, bitmap);
-
-		} else if (prev->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
-			ret = gif__recover_frame(gif, bitmap);
-			if (ret != GIF_OK) {
-				gif__restore_bg(gif, prev, bitmap);
-			}
-		}
-	}
-
-	if (frame->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
-		/* Store the previous frame for later restoration */
-		gif__record_frame(gif, bitmap);
-	}
-
-	ret = gif__decode(gif, frame, minimum_code_size, bitmap);
-
-	gif__bitmap_modified(gif);
-
-	if (frame->virgin) {
-		frame->opaque = gif__bitmap_get_opaque(gif);
-		frame->virgin = false;
-	}
-	gif__bitmap_set_opaque(gif, frame);
-
-	return ret;
-}
-
-/**
- * Parse the image data for a gif frame.
- *
- * Sets up gif->colour_table for the frame.
- *
- * \param[in] gif    The gif object we're decoding.
- * \param[in] frame  The frame to get the colour table for.
- * \return GIF_OK on success, appropriate error otherwise.
- */
-static gif_result gif__parse_image_data(
-		struct gif_animation *gif,
-		struct gif_frame *frame,
-		bool decode)
-{
-	uint8_t *data = gif->gif_data + gif->buffer_position;
-	size_t len = gif->buffer_size - gif->buffer_position;
-	uint32_t frame_idx = frame - gif->frames;
-	uint8_t minimum_code_size;
-	gif_result ret;
-
-	assert(gif != NULL);
-	assert(frame != NULL);
-
-	if (!decode) {
-		gif->frame_count_partial = frame_idx + 1;
-	}
-
-	/* Ensure sufficient data remains.  A gif trailer or a minimum lzw code
-	 * followed by a gif trailer is treated as OK, although without any
-	 * image data. */
-	switch (len) {
-		default: if (data[0] == GIF_TRAILER) return GIF_OK;
-			break;
-		case 2: if (data[1] == GIF_TRAILER) return GIF_OK;
-			/* Fall through. */
-		case 1: if (data[0] == GIF_TRAILER) return GIF_OK;
-			/* Fall through. */
-		case 0: return GIF_INSUFFICIENT_FRAME_DATA;
-	}
-
-	minimum_code_size = data[0];
-	if (minimum_code_size >= LZW_CODE_MAX) {
-		return GIF_DATA_ERROR;
-	}
-	gif->buffer_position++;
-	data++;
-	len--;
-
-	if (decode) {
-		ret = gif__update_bitmap(gif, frame, minimum_code_size,
-				frame_idx);
-	} else {
-		uint32_t block_size = 0;
-
-		while (block_size != 1) {
-			if (len < 1) return GIF_INSUFFICIENT_FRAME_DATA;
-			block_size = data[0] + 1;
-			/* Check if the frame data runs off the end of the file	*/
-			if ((int)(len - block_size) < 0) {
-				/* Try to recover by signaling the end of the gif.
-				 * Once we get garbage data, there is no logical way to
-				 * determine where the next frame is.  It's probably
-				 * better to partially load the gif than not at all.
-				 */
-				if (len >= 2) {
-					data[0] = 0;
-					data[1] = GIF_TRAILER;
-					len = 1;
-					data++;
-					break;
-				} else {
-					return GIF_INSUFFICIENT_FRAME_DATA;
-				}
-			} else {
-				len -= block_size;
-				data += block_size;
-			}
-		}
-
-		gif->buffer_position = data - gif->gif_data;
-		gif->frame_count = frame_idx + 1;
-		gif->frames[frame_idx].display = true;
-
-		/* Check if we've finished */
-		if (len < 1) {
-			return GIF_INSUFFICIENT_FRAME_DATA;
-		} else {
-			if (data[0] == GIF_TRAILER) {
-				return GIF_OK;
-			}
-		}
-
-		return GIF_WORKING;
-	}
-
-	return ret;
-}
-
 /**
  * decode a gif frame
  *
@@ -1109,9 +1106,9 @@ static gif_result gif__parse_image_data(
  * \param frame The frame number to decode.
  * \param clear_image flag for image data being cleared instead of plotted.
  */
-static gif_result
-gif_internal_decode_frame(gif_animation *gif,
-			  uint32_t frame_idx)
+static gif_result gif_internal_decode_frame(
+		struct gif_animation *gif,
+		uint32_t frame_idx)
 {
 	gif_result ret;
 	uint8_t *gif_data;
