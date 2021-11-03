@@ -842,60 +842,47 @@ static inline gif_result gif__decode(
 }
 
 /**
- * Clear a gif frame.
+ * Restore a GIF to the background colour.
  *
  * \param[in] gif     The gif object we're decoding.
- * \param[in] frame   The frame to clear.
+ * \param[in] frame   The frame to clear, or NULL.
  * \param[in] bitmap  The bitmap to clear the frame in.
  */
-static void gif_clear_frame(
+static void gif__restore_bg(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
 		uint32_t *bitmap)
 {
-	uint32_t width;
-	uint32_t height;
-	uint32_t offset_x;
-	uint32_t offset_y;
+	if (frame == NULL) {
+		memset(bitmap, GIF_TRANSPARENT_COLOUR,
+				gif->width * gif->height * sizeof(*bitmap));
+	} else {
+		uint32_t offset_x = frame->redraw_x;
+		uint32_t offset_y = frame->redraw_y;
+		uint32_t width = frame->redraw_width;
+		uint32_t height = frame->redraw_height;
 
-	assert(frame->disposal_method == GIF_DISPOSAL_RESTORE_BG);
+		if (frame->display == false) {
+			return;
+		}
 
-	/* Ensure this frame is supposed to be decoded */
-	if (frame->display == false) {
-		return;
-	}
-
-	offset_x = frame->redraw_x;
-	offset_y = frame->redraw_y;
-	width = frame->redraw_width;
-	height = frame->redraw_height;
-
-	/* Clear our frame */
-	for (uint32_t y = 0; y < height; y++) {
-		uint32_t *scanline;
-		scanline = bitmap + offset_x + ((offset_y + y) * gif->width);
 		if (frame->transparency) {
-			memset(scanline, GIF_TRANSPARENT_COLOUR, width * 4);
+			for (uint32_t y = 0; y < height; y++) {
+				uint32_t *scanline = bitmap + offset_x +
+						(offset_y + y) * gif->width;
+				memset(scanline, GIF_TRANSPARENT_COLOUR,
+						width * sizeof(*bitmap));
+			}
 		} else {
-			for (uint32_t x = 0; x < width; x++) {
-				scanline[x] = gif->bg_colour;
+			for (uint32_t y = 0; y < height; y++) {
+				uint32_t *scanline = bitmap + offset_x +
+						(offset_y + y) * gif->width;
+				for (uint32_t x = 0; x < width; x++) {
+					scanline[x] = gif->bg_colour;
+				}
 			}
 		}
 	}
-}
-
-/**
- * Wipe bitmap to transparent.
- *
- * \param[in] gif     The gif object we're decoding.
- * \param[in] bitmap  The bitmap to wipe.
- */
-static inline void gif__wipe_bitmap(
-		const struct gif_animation *gif,
-		uint32_t *bitmap)
-{
-	memset((char*)bitmap, GIF_TRANSPARENT_COLOUR,
-			gif->width * gif->height * sizeof(*bitmap));
 }
 
 /**
@@ -1008,13 +995,13 @@ gif_internal_decode_frame(gif_animation *gif,
 	/* Handle any bitmap clearing/restoration required before decoding this
 	 * frame. */
 	if (frame_idx == 0 || gif->decoded_frame == GIF_INVALID_FRAME) {
-		gif__wipe_bitmap(gif, frame_data);
+		gif__restore_bg(gif, NULL, frame_data);
 
 	} else {
 		struct gif_frame *prev = &gif->frames[frame_idx - 1];
 
 		if (prev->disposal_method == GIF_DISPOSAL_RESTORE_BG) {
-			gif_clear_frame(gif, prev, frame_data);
+			gif__restore_bg(gif, prev, frame_data);
 
 		} else if (prev->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
 			/*
@@ -1023,7 +1010,7 @@ gif_internal_decode_frame(gif_animation *gif,
 			 */
 			ret = gif__recover_frame(gif);
 			if (ret != GIF_OK) {
-				gif__wipe_bitmap(gif, frame_data);
+				gif__restore_bg(gif, prev, frame_data);
 			}
 		}
 	}
