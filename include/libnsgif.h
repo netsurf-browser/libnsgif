@@ -53,7 +53,7 @@ typedef struct gif_frame {
         /** whether we acknoledge transparency */
         bool transparency;
         /** the index designating a transparent pixel */
-        unsigned char transparency_index;
+        unsigned int transparency_index;
         /** x co-ordinate of redraw rectangle */
         unsigned int redraw_x;
         /** y co-ordinate of redraw rectangle */

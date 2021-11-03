@@ -475,6 +475,7 @@ static gif_result gif_initialise_frame(gif_animation *gif,
 	gif->frames[frame_idx].virgin = true;
 	gif->frames[frame_idx].disposal_method = 0;
 	gif->frames[frame_idx].transparency = false;
+	gif->frames[frame_idx].transparency_index = GIF_NO_TRANSPARENCY;
 	gif->frames[frame_idx].frame_delay = 100;
 	gif->frames[frame_idx].redraw_required = false;
 
@@ -808,14 +809,8 @@ static inline gif_result gif__decode(
 	uint32_t width = frame->redraw_width;
 	uint32_t height = frame->redraw_height;
 	uint32_t interlace = frame->flags & GIF_INTERLACE_MASK;
+	uint32_t transparency_index = frame->transparency_index;
 	uint32_t *restrict colour_table = gif->colour_table;
-	uint32_t transparency_index;
-
-	if (frame->transparency) {
-		transparency_index = frame->transparency_index;
-	} else {
-		transparency_index = GIF_NO_TRANSPARENCY;
-	}
 
 	if (interlace == false && width == gif->width && offset_x == 0) {
 		ret = gif__decode_simple(gif, height, offset_y,
