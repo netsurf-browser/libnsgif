@@ -844,9 +844,8 @@ static inline gif_result gif__decode(
  * \param[in] gif     The gif object we're decoding.
  * \param[in] frame   The frame to clear.
  * \param[in] bitmap  The bitmap to clear the frame in.
- * \return GIF_OK on success, appropriate error otherwise.
  */
-static gif_result gif_clear_frame(
+static void gif_clear_frame(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
 		uint32_t *bitmap)
@@ -860,7 +859,7 @@ static gif_result gif_clear_frame(
 
 	/* Ensure this frame is supposed to be decoded */
 	if (frame->display == false) {
-		return GIF_OK;
+		return;
 	}
 
 	offset_x = frame->redraw_x;
@@ -880,8 +879,6 @@ static gif_result gif_clear_frame(
 			}
 		}
 	}
-
-	return GIF_OK;
 }
 
 /**
@@ -1014,10 +1011,8 @@ gif_internal_decode_frame(gif_animation *gif,
 		struct gif_frame *prev = &gif->frames[frame_idx - 1];
 
 		if (prev->disposal_method == GIF_FRAME_CLEAR) {
-			ret = gif_clear_frame(gif, prev, frame_data);
-			if (ret != GIF_OK) {
-				goto gif_decode_frame_exit;
-			}
+			gif_clear_frame(gif, prev, frame_data);
+
 		} else if (prev->disposal_method == GIF_FRAME_RESTORE) {
 			/*
 			 * If the previous frame's disposal method requires we
