@@ -408,6 +408,41 @@ static gif_result gif__parse_colour_table(
 	return GIF_OK;
 }
 
+static struct gif_frame *gif__get_frame(
+		struct gif_animation *gif,
+		uint32_t frame_idx)
+{
+	struct gif_frame *frame;
+
+	if (gif->frame_holders > frame_idx) {
+		frame = &gif->frames[frame_idx];
+	} else {
+		/* Allocate more memory */
+		size_t count = frame_idx + 1;
+		struct gif_frame *temp;
+
+		temp = realloc(gif->frames, count * sizeof(*frame));
+		if (temp == NULL) {
+			return NULL;
+		}
+		gif->frames = temp;
+		gif->frame_holders = count;
+
+		frame = &gif->frames[frame_idx];
+
+		frame->transparency = false;
+		frame->transparency_index = GIF_NO_TRANSPARENCY;
+		frame->frame_pointer = gif->buffer_position;
+		frame->redraw_required = false;
+		frame->disposal_method = 0;
+		frame->frame_delay = 100;
+		frame->display = false;
+		frame->virgin = true;
+	}
+
+	return frame;
+}
+
 /**
  * Attempts to initialise the next frame
  *
@@ -426,7 +461,7 @@ static gif_result gif_initialise_frame(gif_animation *gif,
 		uint32_t frame_idx)
 {
 	gif_result ret;
-	gif_frame *temp_buf;
+	struct gif_frame *frame;
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
 	uint32_t block_size;
@@ -456,32 +491,9 @@ static gif_result gif_initialise_frame(gif_animation *gif,
 		return GIF_FRAME_DATA_ERROR;
 	}
 
-	/* Get some memory to store our pointers in etc. */
-	if (gif->frame_holders <= frame_idx) {
-		/* Allocate more memory */
-		temp_buf = (gif_frame *)realloc(gif->frames, (frame_idx + 1) * sizeof(gif_frame));
-		if (temp_buf == NULL) {
-			return GIF_INSUFFICIENT_MEMORY;
-		}
-		gif->frames = temp_buf;
-		gif->frame_holders = frame_idx + 1;
-	}
-
-	/* Store our frame pointer. We would do it when allocating except we
-	 * start off with one frame allocated so we can always use realloc.
-	 */
-	gif->frames[frame_idx].frame_pointer = gif->buffer_position;
-	gif->frames[frame_idx].display = false;
-	gif->frames[frame_idx].virgin = true;
-	gif->frames[frame_idx].disposal_method = 0;
-	gif->frames[frame_idx].transparency = false;
-	gif->frames[frame_idx].transparency_index = GIF_NO_TRANSPARENCY;
-	gif->frames[frame_idx].frame_delay = 100;
-	gif->frames[frame_idx].redraw_required = false;
-
-	/* Invalidate any previous decoding we have of this frame */
-	if (gif->decoded_frame == (int)frame_idx) {
-		gif->decoded_frame = GIF_INVALID_FRAME;
+	frame = gif__get_frame(gif, frame_idx);
+	if (frame == NULL) {
+		return GIF_INSUFFICIENT_MEMORY;
 	}
 
 	/* We pretend to initialise the frames, but really we just skip over
@@ -914,7 +926,10 @@ gif_internal_decode_frame(gif_animation *gif,
 		return GIF_OK;
 	}
 
-	frame = &gif->frames[frame_idx];
+	frame = gif__get_frame(gif, frame_idx);
+	if (frame == NULL) {
+		return GIF_INSUFFICIENT_MEMORY;
+	}
 
 	/* Ensure this frame is supposed to be decoded */
 	if (frame->display == false) {
@@ -1098,6 +1113,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 		 */
 		gif->frame_image = NULL;
 		gif->frames = NULL;
+		gif->frame_holders = 0;
 		gif->local_colour_table = NULL;
 		gif->global_colour_table = NULL;
 
@@ -1191,13 +1207,6 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 				return GIF_INSUFFICIENT_DATA;
 			}
 		}
-
-		/* Initialise enough workspace for a frame */
-		if ((gif->frames = (gif_frame *)malloc(sizeof(gif_frame))) == NULL) {
-			gif_finalise(gif);
-			return GIF_INSUFFICIENT_MEMORY;
-		}
-		gif->frame_holders = 1;
 
 		/* Remember we've done this now */
 		gif->buffer_position = gif_data - gif->gif_data;
