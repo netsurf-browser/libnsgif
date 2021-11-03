@@ -982,7 +982,6 @@ static gif_result gif_initialise_frame(
 	struct gif_frame *frame;
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
-	uint32_t block_size;
 
 	/* Get our buffer position etc. */
 	gif_data = (uint8_t *)(gif->gif_data + gif->buffer_position);
@@ -1036,67 +1035,13 @@ static gif_result gif_initialise_frame(
 	if (ret != GIF_OK) {
 		return ret;
 	}
-	gif_data = gif->gif_data + gif->buffer_position;
-	gif_bytes = (gif_end - gif_data);
 
-	/* Move our data onwards and remember we've got a bit of this frame */
-	gif->frame_count_partial = frame_idx + 1;
-
-	/* Ensure we have a correct code size */
-	if (gif_bytes < 1) {
-		return GIF_INSUFFICIENT_FRAME_DATA;
-	}
-	if (gif_data[0] >= LZW_CODE_MAX) {
-		return GIF_DATA_ERROR;
+	ret = gif__parse_image_data(gif, &gif->frames[frame_idx], false);
+	if (ret != GIF_OK) {
+		return ret;
 	}
 
-	/* Move our pointer to the actual image data */
-	gif_data++;
-	--gif_bytes;
-
-	/* Repeatedly skip blocks until we get a zero block or run out of data
-	 * These blocks of image data are processed later by gif_decode_frame()
-	 */
-	block_size = 0;
-	while (block_size != 1) {
-		if (gif_bytes < 1) return GIF_INSUFFICIENT_FRAME_DATA;
-		block_size = gif_data[0] + 1;
-		/* Check if the frame data runs off the end of the file	*/
-		if ((int)(gif_bytes - block_size) < 0) {
-			/* Try to recover by signaling the end of the gif.
-			 * Once we get garbage data, there is no logical way to
-			 * determine where the next frame is.  It's probably
-			 * better to partially load the gif than not at all.
-			 */
-			if (gif_bytes >= 2) {
-				gif_data[0] = 0;
-				gif_data[1] = GIF_TRAILER;
-				gif_bytes = 1;
-				++gif_data;
-				break;
-			} else {
-				return GIF_INSUFFICIENT_FRAME_DATA;
-			}
-		} else {
-			gif_bytes -= block_size;
-			gif_data += block_size;
-		}
-	}
-
-	/* Add the frame and set the display flag */
-	gif->buffer_position = gif_data - gif->gif_data;
-	gif->frame_count = frame_idx + 1;
-	gif->frames[frame_idx].display = true;
-
-	/* Check if we've finished */
-	if (gif_bytes < 1) {
-		return GIF_INSUFFICIENT_FRAME_DATA;
-	} else {
-		if (gif_data[0] == GIF_TRAILER) {
-			return GIF_OK;
-		}
-	}
-	return GIF_WORKING;
+	return GIF_OK;
 }
 
 /**
