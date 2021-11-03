@@ -960,6 +960,8 @@ static gif_result gif__update_bitmap(
 	gif_result ret;
 	uint32_t *bitmap;
 
+	gif->decoded_frame = frame_idx;
+
 	bitmap = gif__bitmap_get(gif);
 	if (bitmap == NULL) {
 		return GIF_INSUFFICIENT_MEMORY;
@@ -1003,6 +1005,104 @@ static gif_result gif__update_bitmap(
 }
 
 /**
+ * Parse the image data for a gif frame.
+ *
+ * Sets up gif->colour_table for the frame.
+ *
+ * \param[in] gif    The gif object we're decoding.
+ * \param[in] frame  The frame to get the colour table for.
+ * \return GIF_OK on success, appropriate error otherwise.
+ */
+static gif_result gif__parse_image_data(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
+		bool decode)
+{
+	uint8_t *data = gif->gif_data + gif->buffer_position;
+	size_t len = gif->buffer_size - gif->buffer_position;
+	uint32_t frame_idx = frame - gif->frames;
+	uint8_t minimum_code_size;
+	gif_result ret;
+
+	assert(gif != NULL);
+	assert(frame != NULL);
+
+	if (!decode) {
+		gif->frame_count_partial = frame_idx + 1;
+	}
+
+	/* Ensure sufficient data remains.  A gif trailer or a minimum lzw code
+	 * followed by a gif trailer is treated as OK, although without any
+	 * image data. */
+	switch (len) {
+		default: if (data[0] == GIF_TRAILER) return GIF_OK;
+			break;
+		case 2: if (data[1] == GIF_TRAILER) return GIF_OK;
+			/* Fall through. */
+		case 1: if (data[0] == GIF_TRAILER) return GIF_OK;
+			/* Fall through. */
+		case 0: return GIF_INSUFFICIENT_FRAME_DATA;
+	}
+
+	minimum_code_size = data[0];
+	if (minimum_code_size >= LZW_CODE_MAX) {
+		return GIF_DATA_ERROR;
+	}
+	gif->buffer_position++;
+	data++;
+	len--;
+
+	if (decode) {
+		ret = gif__update_bitmap(gif, frame, minimum_code_size,
+				frame_idx);
+	} else {
+		uint32_t block_size = 0;
+
+		while (block_size != 1) {
+			if (len < 1) return GIF_INSUFFICIENT_FRAME_DATA;
+			block_size = data[0] + 1;
+			/* Check if the frame data runs off the end of the file	*/
+			if ((int)(len - block_size) < 0) {
+				/* Try to recover by signaling the end of the gif.
+				 * Once we get garbage data, there is no logical way to
+				 * determine where the next frame is.  It's probably
+				 * better to partially load the gif than not at all.
+				 */
+				if (len >= 2) {
+					data[0] = 0;
+					data[1] = GIF_TRAILER;
+					len = 1;
+					data++;
+					break;
+				} else {
+					return GIF_INSUFFICIENT_FRAME_DATA;
+				}
+			} else {
+				len -= block_size;
+				data += block_size;
+			}
+		}
+
+		gif->buffer_position = data - gif->gif_data;
+		gif->frame_count = frame_idx + 1;
+		gif->frames[frame_idx].display = true;
+
+		/* Check if we've finished */
+		if (len < 1) {
+			return GIF_INSUFFICIENT_FRAME_DATA;
+		} else {
+			if (data[0] == GIF_TRAILER) {
+				return GIF_OK;
+			}
+		}
+
+		return GIF_WORKING;
+	}
+
+	return ret;
+}
+
+/**
  * decode a gif frame
  *
  * \param gif gif animation context.
@@ -1014,9 +1114,8 @@ gif_internal_decode_frame(gif_animation *gif,
 			  uint32_t frame_idx)
 {
 	gif_result ret;
+	uint8_t *gif_data;
 	struct gif_frame *frame;
-	uint8_t *gif_data, *gif_end;
-	int gif_bytes;
 	uint32_t save_buffer_position;
 
 	/* Ensure the frame is in range to decode */
@@ -1041,8 +1140,6 @@ gif_internal_decode_frame(gif_animation *gif,
 
 	/* Get the start of our frame data and the end of the GIF data */
 	gif_data = gif->gif_data + frame->frame_pointer;
-	gif_end = gif->gif_data + gif->buffer_size;
-	gif_bytes = (gif_end - gif_data);
 
 	/* Save the buffer position */
 	save_buffer_position = gif->buffer_position;
@@ -1061,43 +1158,13 @@ gif_internal_decode_frame(gif_animation *gif,
 
 	ret = gif__parse_colour_table(gif, frame, true);
 	if (ret != GIF_OK) {
-		return ret;
-	}
-	gif_data = gif->gif_data + gif->buffer_position;
-	gif_bytes = (gif_end - gif_data);
-
-	/* Ensure sufficient data remains */
-	if (gif_bytes < 1) {
-		ret = GIF_INSUFFICIENT_FRAME_DATA;
 		goto gif_decode_frame_exit;
 	}
 
-	/* check for an end marker */
-	if (gif_data[0] == GIF_TRAILER) {
-		ret = GIF_OK;
+	ret = gif__parse_image_data(gif, frame, true);
+	if (ret != GIF_OK) {
 		goto gif_decode_frame_exit;
 	}
-
-	/* Ensure we have enough data for a 1-byte LZW code size +
-	 * 1-byte gif trailer
-	 */
-	if (gif_bytes < 2) {
-		ret = GIF_INSUFFICIENT_FRAME_DATA;
-		goto gif_decode_frame_exit;
-	}
-
-	/* If we only have a 1-byte LZW code size + 1-byte gif trailer,
-	 * we're finished
-	 */
-	if ((gif_bytes == 2) && (gif_data[1] == GIF_TRAILER)) {
-		ret = GIF_OK;
-		goto gif_decode_frame_exit;
-	}
-
-	gif->decoded_frame = frame_idx;
-	gif->buffer_position = (gif_data - gif->gif_data) + 1;
-
-	ret = gif__update_bitmap(gif, frame, gif_data[0], frame_idx);
 
 gif_decode_frame_exit:
 
