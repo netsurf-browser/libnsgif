@@ -618,10 +618,82 @@ static gif_result gif_error_from_lzw(lzw_result l_res)
 	return g_res[l_res];
 }
 
-static void gif__record_frame(gif_animation *gif)
+/**
+ * Helper to get the rendering bitmap for a gif.
+ *
+ * \param[in]  gif  The gif object we're decoding.
+ * \return Client pixel buffer for rendering into.
+ */
+static inline uint32_t* gif__bitmap_get(
+		struct gif_animation *gif)
+{
+	gif_result ret;
+
+	/* Make sure we have a buffer to decode to. */
+	ret = gif_initialise_sprite(gif, gif->width, gif->height);
+	if (ret != GIF_OK) {
+		return NULL;
+	}
+
+	/* Get the frame data */
+	assert(gif->bitmap_callbacks.bitmap_get_buffer);
+	return (uint32_t *)gif->bitmap_callbacks.bitmap_get_buffer(
+			gif->frame_image);
+}
+
+/**
+ * Helper to tell the client that their bitmap was modified.
+ *
+ * \param[in]  gif  The gif object we're decoding.
+ */
+static inline void gif__bitmap_modified(
+		const struct gif_animation *gif)
+{
+	if (gif->bitmap_callbacks.bitmap_modified) {
+		gif->bitmap_callbacks.bitmap_modified(gif->frame_image);
+	}
+}
+
+/**
+ * Helper to tell the client that whether the bitmap is opaque.
+ *
+ * \param[in]  gif    The gif object we're decoding.
+ * \param[in]  frmae  The frame that has been decoded.
+ */
+static inline void gif__bitmap_set_opaque(
+		const struct gif_animation *gif,
+		const struct gif_frame *frame)
+{
+	if (gif->bitmap_callbacks.bitmap_set_opaque) {
+		gif->bitmap_callbacks.bitmap_set_opaque(
+				gif->frame_image, frame->opaque);
+	}
+}
+
+/**
+ * Helper to get the client to determine if the bitmap is opaque.
+ *
+ * \todo: We don't really need to get the client to do this for us.
+ *
+ * \param[in]  gif    The gif object we're decoding.
+ * \return true if the bitmap is opaque, false otherwise.
+ */
+static inline bool gif__bitmap_get_opaque(
+		const struct gif_animation *gif)
+{
+	if (gif->bitmap_callbacks.bitmap_test_opaque) {
+		return gif->bitmap_callbacks.bitmap_test_opaque(
+				gif->frame_image);
+	}
+
+	return false;
+}
+
+static void gif__record_frame(
+		struct gif_animation *gif,
+		const uint32_t *bitmap)
 {
 	bool need_alloc = gif->prev_frame == NULL;
-	const uint32_t *frame_data;
 	uint32_t *prev_frame;
 
 	if (gif->decoded_frame == GIF_INVALID_FRAME ||
@@ -630,9 +702,8 @@ static void gif__record_frame(gif_animation *gif)
 		return;
 	}
 
-	assert(gif->bitmap_callbacks.bitmap_get_buffer);
-	frame_data = (void *)gif->bitmap_callbacks.bitmap_get_buffer(gif->frame_image);
-	if (!frame_data) {
+	bitmap = gif__bitmap_get(gif);
+	if (bitmap == NULL) {
 		return;
 	}
 
@@ -651,7 +722,7 @@ static void gif__record_frame(gif_animation *gif)
 		prev_frame = gif->prev_frame;
 	}
 
-	memcpy(prev_frame, frame_data, gif->width * gif->height * 4);
+	memcpy(prev_frame, bitmap, gif->width * gif->height * 4);
 
 	gif->prev_frame  = prev_frame;
 	gif->prev_width  = gif->width;
@@ -659,27 +730,22 @@ static void gif__record_frame(gif_animation *gif)
 	gif->prev_index  = gif->decoded_frame;
 }
 
-static gif_result gif__recover_frame(const gif_animation *gif)
+static gif_result gif__recover_frame(
+		const struct gif_animation *gif,
+		uint32_t *bitmap)
 {
 	const uint32_t *prev_frame = gif->prev_frame;
 	unsigned height = gif->height < gif->prev_height ? gif->height : gif->prev_height;
 	unsigned width  = gif->width  < gif->prev_width  ? gif->width  : gif->prev_width;
-	uint32_t *frame_data;
 
 	if (prev_frame == NULL) {
 		return GIF_FRAME_DATA_ERROR;
 	}
 
-	assert(gif->bitmap_callbacks.bitmap_get_buffer);
-	frame_data = (void *)gif->bitmap_callbacks.bitmap_get_buffer(gif->frame_image);
-	if (!frame_data) {
-		return GIF_INSUFFICIENT_MEMORY;
-	}
-
 	for (unsigned y = 0; y < height; y++) {
-		memcpy(frame_data, prev_frame, width * 4);
+		memcpy(bitmap, prev_frame, width * 4);
 
-		frame_data += gif->width;
+		bitmap += gif->width;
 		prev_frame += gif->prev_width;
 	}
 
@@ -885,6 +951,57 @@ static void gif__restore_bg(
 	}
 }
 
+static gif_result gif__update_bitmap(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
+		uint8_t minimum_code_size,
+		uint32_t frame_idx)
+{
+	gif_result ret;
+	uint32_t *bitmap;
+
+	bitmap = gif__bitmap_get(gif);
+	if (bitmap == NULL) {
+		return GIF_INSUFFICIENT_MEMORY;
+	}
+
+	/* Handle any bitmap clearing/restoration required before decoding this
+	 * frame. */
+	if (frame_idx == 0 || gif->decoded_frame == GIF_INVALID_FRAME) {
+		gif__restore_bg(gif, NULL, bitmap);
+
+	} else {
+		struct gif_frame *prev = &gif->frames[frame_idx - 1];
+
+		if (prev->disposal_method == GIF_DISPOSAL_RESTORE_BG) {
+			gif__restore_bg(gif, prev, bitmap);
+
+		} else if (prev->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
+			ret = gif__recover_frame(gif, bitmap);
+			if (ret != GIF_OK) {
+				gif__restore_bg(gif, prev, bitmap);
+			}
+		}
+	}
+
+	if (frame->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
+		/* Store the previous frame for later restoration */
+		gif__record_frame(gif, bitmap);
+	}
+
+	ret = gif__decode(gif, frame, minimum_code_size, bitmap);
+
+	gif__bitmap_modified(gif);
+
+	if (frame->virgin) {
+		frame->opaque = gif__bitmap_get_opaque(gif);
+		frame->virgin = false;
+	}
+	gif__bitmap_set_opaque(gif, frame);
+
+	return ret;
+}
+
 /**
  * decode a gif frame
  *
@@ -900,7 +1017,6 @@ gif_internal_decode_frame(gif_animation *gif,
 	struct gif_frame *frame;
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
-	uint32_t *frame_data = 0; // Set to 0 for no warnings
 	uint32_t save_buffer_position;
 
 	/* Ensure the frame is in range to decode */
@@ -962,20 +1078,6 @@ gif_internal_decode_frame(gif_animation *gif,
 		goto gif_decode_frame_exit;
 	}
 
-	/* Make sure we have a buffer to decode to. */
-	if (gif_initialise_sprite(gif, gif->width, gif->height)) {
-		ret = GIF_INSUFFICIENT_MEMORY;
-		goto gif_decode_frame_exit;
-	}
-
-	/* Get the frame data */
-	assert(gif->bitmap_callbacks.bitmap_get_buffer);
-	frame_data = (void *)gif->bitmap_callbacks.bitmap_get_buffer(gif->frame_image);
-	if (!frame_data) {
-		ret = GIF_INSUFFICIENT_MEMORY;
-		goto gif_decode_frame_exit;
-	}
-
 	/* Ensure we have enough data for a 1-byte LZW code size +
 	 * 1-byte gif trailer
 	 */
@@ -992,58 +1094,12 @@ gif_internal_decode_frame(gif_animation *gif,
 		goto gif_decode_frame_exit;
 	}
 
-	/* Handle any bitmap clearing/restoration required before decoding this
-	 * frame. */
-	if (frame_idx == 0 || gif->decoded_frame == GIF_INVALID_FRAME) {
-		gif__restore_bg(gif, NULL, frame_data);
-
-	} else {
-		struct gif_frame *prev = &gif->frames[frame_idx - 1];
-
-		if (prev->disposal_method == GIF_DISPOSAL_RESTORE_BG) {
-			gif__restore_bg(gif, prev, frame_data);
-
-		} else if (prev->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
-			/*
-			 * If the previous frame's disposal method requires we
-			 * restore the previous image, restore our saved image.
-			 */
-			ret = gif__recover_frame(gif);
-			if (ret != GIF_OK) {
-				gif__restore_bg(gif, prev, frame_data);
-			}
-		}
-	}
-
-	if (frame->disposal_method == GIF_DISPOSAL_RESTORE_PREV) {
-		/* Store the previous frame for later restoration */
-		gif__record_frame(gif);
-	}
-
 	gif->decoded_frame = frame_idx;
 	gif->buffer_position = (gif_data - gif->gif_data) + 1;
 
-	ret = gif__decode(gif, frame, gif_data[0], frame_data);
+	ret = gif__update_bitmap(gif, frame, gif_data[0], frame_idx);
 
 gif_decode_frame_exit:
-
-	if (gif->bitmap_callbacks.bitmap_modified) {
-		gif->bitmap_callbacks.bitmap_modified(gif->frame_image);
-	}
-
-	/* Check if we should test for optimisation */
-	if (frame->virgin) {
-		if (gif->bitmap_callbacks.bitmap_test_opaque) {
-			frame->opaque = gif->bitmap_callbacks.bitmap_test_opaque(gif->frame_image);
-		} else {
-			frame->opaque = false;
-		}
-		frame->virgin = false;
-	}
-
-	if (gif->bitmap_callbacks.bitmap_set_opaque) {
-		gif->bitmap_callbacks.bitmap_set_opaque(gif->frame_image, frame->opaque);
-	}
 
 	/* Restore the buffer position */
 	gif->buffer_position = save_buffer_position;
