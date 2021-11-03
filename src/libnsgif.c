@@ -801,16 +801,16 @@ gif__decode_simple(
 static inline gif_result gif__decode(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
-		uint32_t width,
-		uint32_t height,
-		uint32_t offset_x,
-		uint32_t offset_y,
-		uint32_t interlace,
 		uint8_t minimum_code_size,
-		uint32_t *restrict frame_data,
-		uint32_t *restrict colour_table)
+		uint32_t *restrict frame_data)
 {
 	gif_result ret;
+	uint32_t offset_x = frame->redraw_x;
+	uint32_t offset_y = frame->redraw_y;
+	uint32_t width = frame->redraw_width;
+	uint32_t height = frame->redraw_height;
+	uint32_t interlace = frame->flags & GIF_INTERLACE_MASK;
+	uint32_t *restrict colour_table = gif->colour_table;
 	uint32_t transparency_index;
 
 	if (frame->transparency) {
@@ -846,7 +846,10 @@ static gif_result gif_clear_frame(
 		struct gif_frame *frame,
 		uint32_t *bitmap)
 {
-	uint32_t width, height, offset_x, offset_y;
+	uint32_t width;
+	uint32_t height;
+	uint32_t offset_x;
+	uint32_t offset_y;
 
 	assert(frame->disposal_method == GIF_FRAME_CLEAR);
 
@@ -905,9 +908,6 @@ gif_internal_decode_frame(gif_animation *gif,
 	struct gif_frame *frame;
 	uint8_t *gif_data, *gif_end;
 	int gif_bytes;
-	uint32_t width, height, offset_x, offset_y;
-	uint32_t interlace;
-	uint32_t *colour_table;
 	uint32_t *frame_data = 0; // Set to 0 for no warnings
 	uint32_t save_buffer_position;
 
@@ -954,14 +954,6 @@ gif_internal_decode_frame(gif_animation *gif,
 	}
 	gif_data = gif->gif_data + gif->buffer_position;
 	gif_bytes = (gif_end - gif_data);
-
-	offset_x = frame->redraw_x;
-	offset_y = frame->redraw_y;
-	width = frame->redraw_width;
-	height = frame->redraw_height;
-	interlace = frame->flags & GIF_INTERLACE_MASK;
-
-	colour_table = gif->colour_table;
 
 	/* Ensure sufficient data remains */
 	if (gif_bytes < 1) {
@@ -1038,9 +1030,7 @@ gif_internal_decode_frame(gif_animation *gif,
 	gif->decoded_frame = frame_idx;
 	gif->buffer_position = (gif_data - gif->gif_data) + 1;
 
-	ret = gif__decode(gif, frame, width, height,
-			offset_x, offset_y, interlace, gif_data[0],
-			frame_data, colour_table);
+	ret = gif__decode(gif, frame, gif_data[0], frame_data);
 
 gif_decode_frame_exit:
 
