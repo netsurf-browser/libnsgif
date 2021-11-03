@@ -993,14 +993,6 @@ static gif_result gif_initialise_frame(
 		return GIF_OK;
 	}
 
-	/* Check if there is enough data remaining. The shortest block of data
-	 * is a 4-byte comment extension + 1-byte block terminator + 1-byte gif
-	 * trailer
-	 */
-	if (gif_bytes < 6) {
-		return GIF_INSUFFICIENT_DATA;
-	}
-
 	/* We could theoretically get some junk data that gives us millions of
 	 * frames, so we ensure that we don't have a silly number
 	 */
@@ -1012,12 +1004,6 @@ static gif_result gif_initialise_frame(
 	if (frame == NULL) {
 		return GIF_INSUFFICIENT_MEMORY;
 	}
-
-	/* We pretend to initialise the frames, but really we just skip over
-	 * all the data contained within. This is all basically a cut down
-	 * version of gif_decode_frame that doesn't have any of the LZW bits in
-	 * it.
-	 */
 
 	/* Initialise any extensions */
 	gif->buffer_position = gif_data - gif->gif_data;
