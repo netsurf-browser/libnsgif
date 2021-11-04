@@ -271,7 +271,7 @@ static gif_result gif__decode_complex(
 		uint32_t offset_x,
 		uint32_t offset_y,
 		uint32_t interlace,
-		uint8_t minimum_code_size,
+		const uint8_t *data,
 		uint32_t transparency_index,
 		uint32_t *restrict frame_data,
 		uint32_t *restrict colour_table)
@@ -281,8 +281,9 @@ static gif_result gif__decode_complex(
 	lzw_result res;
 
 	/* Initialise the LZW decoding */
-	res = lzw_decode_init(gif->lzw_ctx, minimum_code_size,
-			gif->gif_data, gif->buffer_size, gif->buffer_position);
+	res = lzw_decode_init(gif->lzw_ctx, data[0],
+			gif->gif_data, gif->buffer_size,
+			data + 1 - gif->gif_data);
 	if (res != LZW_OK) {
 		return gif_error_from_lzw(res);
 	}
@@ -345,7 +346,7 @@ static gif_result gif__decode_simple(
 		struct gif_animation *gif,
 		uint32_t height,
 		uint32_t offset_y,
-		uint8_t minimum_code_size,
+		const uint8_t *data,
 		uint32_t transparency_index,
 		uint32_t *restrict frame_data,
 		uint32_t *restrict colour_table)
@@ -356,9 +357,10 @@ static gif_result gif__decode_simple(
 	lzw_result res;
 
 	/* Initialise the LZW decoding */
-	res = lzw_decode_init_map(gif->lzw_ctx,
-			minimum_code_size, transparency_index, colour_table,
-			gif->gif_data, gif->buffer_size, gif->buffer_position);
+	res = lzw_decode_init_map(gif->lzw_ctx, data[0],
+			transparency_index, colour_table,
+			gif->gif_data, gif->buffer_size,
+			data + 1 - gif->gif_data);
 	if (res != LZW_OK) {
 		return gif_error_from_lzw(res);
 	}
@@ -391,7 +393,7 @@ static gif_result gif__decode_simple(
 static inline gif_result gif__decode(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
-		uint8_t minimum_code_size,
+		const uint8_t *data,
 		uint32_t *restrict frame_data)
 {
 	gif_result ret;
@@ -405,12 +407,12 @@ static inline gif_result gif__decode(
 
 	if (interlace == false && width == gif->width && offset_x == 0) {
 		ret = gif__decode_simple(gif, height, offset_y,
-				minimum_code_size, transparency_index,
+				data, transparency_index,
 				frame_data, colour_table);
 	} else {
 		ret = gif__decode_complex(gif, width, height,
 				offset_x, offset_y, interlace,
-				minimum_code_size, transparency_index,
+				data, transparency_index,
 				frame_data, colour_table);
 	}
 
@@ -464,7 +466,7 @@ static void gif__restore_bg(
 static gif_result gif__update_bitmap(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
-		uint8_t minimum_code_size,
+		const uint8_t *data,
 		uint32_t frame_idx)
 {
 	gif_result ret;
@@ -501,7 +503,7 @@ static gif_result gif__update_bitmap(
 		gif__record_frame(gif, bitmap);
 	}
 
-	ret = gif__decode(gif, frame, minimum_code_size, bitmap);
+	ret = gif__decode(gif, frame, data, bitmap);
 
 	gif__bitmap_modified(gif);
 
@@ -617,15 +619,12 @@ static gif_result gif__parse_extension_application(
 static gif_result gif__parse_frame_extensions(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
+		uint8_t **pos,
 		bool decode)
 {
-	uint8_t *gif_data, *gif_end;
-	int gif_bytes;
-
-	/* Get our buffer position etc.	*/
-	gif_data = gif->gif_data + gif->buffer_position;
-	gif_end = gif->gif_data + gif->buffer_size;
-	gif_bytes = gif_end - gif_data;
+	uint8_t *gif_data = *pos;
+	uint8_t *gif_end = gif->gif_data + gif->buffer_size;
+	int gif_bytes = gif_end - gif_data;
 
 	/* Initialise the extensions */
 	while (gif_bytes > 0 && gif_data[0] == GIF_EXTENSION_INTRODUCER) {
@@ -700,7 +699,7 @@ static gif_result gif__parse_frame_extensions(
 	}
 
 	/* Set buffer position and return */
-	gif->buffer_position = gif_data - gif->gif_data;
+	*pos = gif_data;
 	return GIF_OK;
 }
 
@@ -728,10 +727,11 @@ static gif_result gif__parse_frame_extensions(
 static gif_result gif__parse_image_descriptor(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
+		uint8_t **pos,
 		bool decode)
 {
-	const uint8_t *data = gif->gif_data + gif->buffer_position;
-	size_t len = gif->buffer_size - gif->buffer_position;
+	const uint8_t *data = *pos;
+	size_t len = gif->gif_data + gif->buffer_size - data;
 	enum {
 		GIF_IMAGE_DESCRIPTOR_LEN = 10u,
 		GIF_IMAGE_SEPARATOR      = 0x2Cu,
@@ -767,7 +767,7 @@ static gif_result gif__parse_image_descriptor(
 		gif->height = (y + h > gif->height) ? y + h : gif->height;
 	}
 
-	gif->buffer_position += GIF_IMAGE_DESCRIPTOR_LEN;
+	*pos += GIF_IMAGE_DESCRIPTOR_LEN;
 	return GIF_OK;
 }
 
@@ -783,11 +783,12 @@ static gif_result gif__parse_image_descriptor(
 static gif_result gif__parse_colour_table(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
+		uint8_t **pos,
 		bool decode)
 {
-	const uint8_t *data = gif->gif_data + gif->buffer_position;
-	size_t len = gif->buffer_size - gif->buffer_position;
 	unsigned colour_table_size;
+	const uint8_t *data = *pos;
+	size_t len = gif->gif_data + gif->buffer_size - data;
 
 	assert(gif != NULL);
 	assert(frame != NULL);
@@ -822,8 +823,8 @@ static gif_result gif__parse_colour_table(
 		}
 	}
 
-	gif->buffer_position += colour_table_size * 3;
 	gif->colour_table = gif->local_colour_table;
+	*pos += colour_table_size * 3;
 	return GIF_OK;
 }
 
@@ -839,10 +840,11 @@ static gif_result gif__parse_colour_table(
 static gif_result gif__parse_image_data(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
+		uint8_t **pos,
 		bool decode)
 {
-	uint8_t *data = gif->gif_data + gif->buffer_position;
-	size_t len = gif->buffer_size - gif->buffer_position;
+	uint8_t *data = *pos;
+	size_t len = gif->gif_data + gif->buffer_size - data;
 	uint32_t frame_idx = frame - gif->frames;
 	uint8_t minimum_code_size;
 	gif_result ret;
@@ -871,15 +873,15 @@ static gif_result gif__parse_image_data(
 	if (minimum_code_size >= LZW_CODE_MAX) {
 		return GIF_DATA_ERROR;
 	}
-	gif->buffer_position++;
-	data++;
-	len--;
 
 	if (decode) {
-		ret = gif__update_bitmap(gif, frame, minimum_code_size,
-				frame_idx);
+		ret = gif__update_bitmap(gif, frame, data, frame_idx);
 	} else {
 		uint32_t block_size = 0;
+
+		/* Skip the minimum code size. */
+		data++;
+		len--;
 
 		while (block_size != 1) {
 			if (len < 1) return GIF_INSUFFICIENT_FRAME_DATA;
@@ -906,9 +908,9 @@ static gif_result gif__parse_image_data(
 			}
 		}
 
-		gif->buffer_position = data - gif->gif_data;
 		gif->frame_count = frame_idx + 1;
 		gif->frames[frame_idx].display = true;
+		*pos = data;
 
 		/* Check if we've finished */
 		if (len < 1) {
@@ -978,17 +980,17 @@ static gif_result gif_initialise_frame(
 		struct gif_animation *gif,
 		uint32_t frame_idx)
 {
+	uint8_t *pos;
+	uint8_t *end;
 	gif_result ret;
-	uint8_t *gif_end;
-	uint8_t *gif_data;
 	struct gif_frame *frame;
 
 	/* Get our buffer position etc. */
-	gif_data = (uint8_t *)(gif->gif_data + gif->buffer_position);
-	gif_end = (uint8_t *)(gif->gif_data + gif->buffer_size);
+	pos = (uint8_t *)(gif->gif_data + gif->buffer_position);
+	end = (uint8_t *)(gif->gif_data + gif->buffer_size);
 
 	/* Check if we've finished */
-	if (gif_data < gif_end && (gif_data[0] == GIF_TRAILER)) {
+	if (pos < end && pos[0] == GIF_TRAILER) {
 		return GIF_OK;
 	}
 
@@ -1005,27 +1007,30 @@ static gif_result gif_initialise_frame(
 	}
 
 	/* Initialise any extensions */
-	ret = gif__parse_frame_extensions(gif, frame, true);
+	ret = gif__parse_frame_extensions(gif, frame, &pos, true);
 	if (ret != GIF_OK) {
-		return ret;
+		goto cleanup;
 	}
 
-	ret = gif__parse_image_descriptor(gif, frame, true);
+	ret = gif__parse_image_descriptor(gif, frame, &pos, true);
 	if (ret != GIF_OK) {
-		return ret;
+		goto cleanup;
 	}
 
-	ret = gif__parse_colour_table(gif, frame, false);
+	ret = gif__parse_colour_table(gif, frame, &pos, false);
 	if (ret != GIF_OK) {
-		return ret;
+		goto cleanup;
 	}
 
-	ret = gif__parse_image_data(gif, frame, false);
+	ret = gif__parse_image_data(gif, frame, &pos, false);
 	if (ret != GIF_OK) {
-		return ret;
+		goto cleanup;
 	}
 
-	return GIF_OK;
+cleanup:
+	gif->buffer_position = pos - gif->gif_data;
+
+	return ret;
 }
 
 /**
@@ -1039,10 +1044,9 @@ static gif_result gif_internal_decode_frame(
 		struct gif_animation *gif,
 		uint32_t frame_idx)
 {
+	uint8_t *pos;
 	gif_result ret;
-	uint8_t *gif_data;
 	struct gif_frame *frame;
-	uint32_t save_buffer_position;
 
 	/* Ensure the frame is in range to decode */
 	if (frame_idx > gif->frame_count_partial) {
@@ -1064,39 +1068,31 @@ static gif_result gif_internal_decode_frame(
 		return GIF_OK;
 	}
 
-	/* Get the start of our frame data and the end of the GIF data */
-	gif_data = gif->gif_data + frame->frame_pointer;
-
-	/* Save the buffer position */
-	save_buffer_position = gif->buffer_position;
-	gif->buffer_position = gif_data - gif->gif_data;
+	/* Get the start of our frame data and the end of the GIF data. */
+	pos = gif->gif_data + frame->frame_pointer;
 
 	/* Skip any extensions because they have already been processed */
-	ret = gif__parse_frame_extensions(gif, frame, false);
+	ret = gif__parse_frame_extensions(gif, frame, &pos, false);
 	if (ret != GIF_OK) {
-		goto gif_decode_frame_exit;
+		goto cleanup;
 	}
 
-	ret = gif__parse_image_descriptor(gif, frame, false);
+	ret = gif__parse_image_descriptor(gif, frame, &pos, false);
 	if (ret != GIF_OK) {
-		goto gif_decode_frame_exit;
+		goto cleanup;
 	}
 
-	ret = gif__parse_colour_table(gif, frame, true);
+	ret = gif__parse_colour_table(gif, frame, &pos, true);
 	if (ret != GIF_OK) {
-		goto gif_decode_frame_exit;
+		goto cleanup;
 	}
 
-	ret = gif__parse_image_data(gif, frame, true);
+	ret = gif__parse_image_data(gif, frame, &pos, true);
 	if (ret != GIF_OK) {
-		goto gif_decode_frame_exit;
+		goto cleanup;
 	}
 
-gif_decode_frame_exit:
-
-	/* Restore the buffer position */
-	gif->buffer_position = save_buffer_position;
-
+cleanup:
 	return ret;
 }
 
