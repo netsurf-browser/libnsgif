@@ -1007,22 +1007,22 @@ static gif_result gif_initialise_frame(
 
 	/* Initialise any extensions */
 	gif->buffer_position = gif_data - gif->gif_data;
-	ret = gif__parse_frame_extensions(gif, &gif->frames[frame_idx], true);
+	ret = gif__parse_frame_extensions(gif, frame, true);
 	if (ret != GIF_OK) {
 		return ret;
 	}
 
-	ret = gif__parse_image_descriptor(gif, &gif->frames[frame_idx], true);
+	ret = gif__parse_image_descriptor(gif, frame, true);
 	if (ret != GIF_OK) {
 		return ret;
 	}
 
-	ret = gif__parse_colour_table(gif, &gif->frames[frame_idx], false);
+	ret = gif__parse_colour_table(gif, frame, false);
 	if (ret != GIF_OK) {
 		return ret;
 	}
 
-	ret = gif__parse_image_data(gif, &gif->frames[frame_idx], false);
+	ret = gif__parse_image_data(gif, frame, false);
 	if (ret != GIF_OK) {
 		return ret;
 	}
