@@ -15,8 +15,8 @@
 #ifndef _LIBNSGIF_H_
 #define _LIBNSGIF_H_
 
+#include <stdint.h>
 #include <stdbool.h>
-#include <inttypes.h>
 
 /* Error return values */
 typedef enum {
@@ -100,7 +100,7 @@ typedef struct gif_animation {
         /** callbacks for bitmap functions */
         gif_bitmap_callback_vt bitmap_callbacks;
         /** pointer to GIF data */
-        unsigned char *gif_data;
+        const uint8_t *gif_data;
         /** width of GIF (may increase during decoding) */
         unsigned int width;
         /** heigth of GIF (may increase during decoding) */
@@ -173,7 +173,7 @@ void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks);
  *         - GIF_OK for successful decoding
  *         - GIF_WORKING for successful decoding if more frames are expected
  */
-gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data);
+gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data);
 
 /**
  * Decodes a GIF frame.

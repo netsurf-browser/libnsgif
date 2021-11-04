@@ -527,7 +527,7 @@ static gif_result gif__update_bitmap(
  */
 static gif_result gif__parse_extension_graphic_control(
 		struct gif_frame *frame,
-		uint8_t *data,
+		const uint8_t *data,
 		size_t len)
 {
 	/* 6-byte Graphic Control Extension is:
@@ -583,7 +583,7 @@ static gif_result gif__parse_extension_graphic_control(
  */
 static gif_result gif__parse_extension_application(
 		struct gif_animation *gif,
-		uint8_t *data,
+		const uint8_t *data,
 		size_t len)
 {
 	/* 14-byte+ Application Extension is:
@@ -619,11 +619,11 @@ static gif_result gif__parse_extension_application(
 static gif_result gif__parse_frame_extensions(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
-		uint8_t **pos,
+		const uint8_t **pos,
 		bool decode)
 {
-	uint8_t *gif_data = *pos;
-	uint8_t *gif_end = gif->gif_data + gif->buffer_size;
+	const uint8_t *gif_data = *pos;
+	const uint8_t *gif_end = gif->gif_data + gif->buffer_size;
 	int gif_bytes = gif_end - gif_data;
 
 	/* Initialise the extensions */
@@ -727,7 +727,7 @@ static gif_result gif__parse_frame_extensions(
 static gif_result gif__parse_image_descriptor(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
-		uint8_t **pos,
+		const uint8_t **pos,
 		bool decode)
 {
 	const uint8_t *data = *pos;
@@ -783,7 +783,7 @@ static gif_result gif__parse_image_descriptor(
 static gif_result gif__parse_colour_table(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
-		uint8_t **pos,
+		const uint8_t **pos,
 		bool decode)
 {
 	unsigned colour_table_size;
@@ -840,10 +840,10 @@ static gif_result gif__parse_colour_table(
 static gif_result gif__parse_image_data(
 		struct gif_animation *gif,
 		struct gif_frame *frame,
-		uint8_t **pos,
+		const uint8_t **pos,
 		bool decode)
 {
-	uint8_t *data = *pos;
+	const uint8_t *data = *pos;
 	size_t len = gif->gif_data + gif->buffer_size - data;
 	uint32_t frame_idx = frame - gif->frames;
 	uint8_t minimum_code_size;
@@ -970,9 +970,9 @@ static gif_result gif__process_frame(
 		uint32_t frame_idx,
 		bool decode)
 {
-	uint8_t *pos;
-	uint8_t *end;
 	gif_result ret;
+	const uint8_t *pos;
+	const uint8_t *end;
 	struct gif_frame *frame;
 
 	frame = gif__get_frame(gif, frame_idx);
@@ -980,7 +980,7 @@ static gif_result gif__process_frame(
 		return GIF_INSUFFICIENT_MEMORY;
 	}
 
-	end = (uint8_t *)(gif->gif_data + gif->buffer_size);
+	end = gif->gif_data + gif->buffer_size;
 
 	if (decode) {
 		pos = gif->gif_data + frame->frame_pointer;
@@ -1055,9 +1055,9 @@ void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks)
 
 
 /* exported function documented in libnsgif.h */
-gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
+gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 {
-	uint8_t *gif_data;
+	const uint8_t *gif_data;
 	uint32_t index;
 	gif_result ret;
 
