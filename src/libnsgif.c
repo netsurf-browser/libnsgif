@@ -887,25 +887,13 @@ static gif_result gif__parse_image_data(
 			if (len < 1) return GIF_INSUFFICIENT_FRAME_DATA;
 			block_size = data[0] + 1;
 			/* Check if the frame data runs off the end of the file	*/
-			if ((int)(len - block_size) < 0) {
-				/* Try to recover by signaling the end of the gif.
-				 * Once we get garbage data, there is no logical way to
-				 * determine where the next frame is.  It's probably
-				 * better to partially load the gif than not at all.
-				 */
-				if (len >= 2) {
-					data[0] = 0;
-					data[1] = GIF_TRAILER;
-					len = 1;
-					data++;
-					break;
-				} else {
-					return GIF_INSUFFICIENT_FRAME_DATA;
-				}
-			} else {
-				len -= block_size;
-				data += block_size;
+			if (block_size > len) {
+				block_size = len;
+				return GIF_OK;
 			}
+
+			len -= block_size;
+			data += block_size;
 		}
 
 		gif->frame_count = frame_idx + 1;
