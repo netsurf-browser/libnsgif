@@ -967,6 +967,7 @@ static struct gif_frame *gif__get_frame(
  *
  * \param[in] gif       The animation context
  * \param[in] frame_idx The frame number to decode.
+ * \param[in] decode    Whether to decode the graphical image data.
  * \return error code
  *         - GIF_INSUFFICIENT_DATA for insufficient data to do anything
  *         - GIF_FRAME_DATA_ERROR for GIF frame data error
@@ -976,126 +977,84 @@ static struct gif_frame *gif__get_frame(
  *         - GIF_OK for successful decoding
  *         - GIF_WORKING for successful decoding if more frames are expected
 */
-static gif_result gif_initialise_frame(
+static gif_result gif__process_frame(
 		struct gif_animation *gif,
-		uint32_t frame_idx)
+		uint32_t frame_idx,
+		bool decode)
 {
 	uint8_t *pos;
 	uint8_t *end;
 	gif_result ret;
 	struct gif_frame *frame;
 
-	/* Get our buffer position etc. */
-	pos = (uint8_t *)(gif->gif_data + gif->buffer_position);
-	end = (uint8_t *)(gif->gif_data + gif->buffer_size);
-
-	/* Check if we've finished */
-	if (pos < end && pos[0] == GIF_TRAILER) {
-		return GIF_OK;
-	}
-
-	/* We could theoretically get some junk data that gives us millions of
-	 * frames, so we ensure that we don't have a silly number
-	 */
-	if (frame_idx > 4096) {
-		return GIF_FRAME_DATA_ERROR;
-	}
-
 	frame = gif__get_frame(gif, frame_idx);
 	if (frame == NULL) {
 		return GIF_INSUFFICIENT_MEMORY;
+	}
+
+	end = (uint8_t *)(gif->gif_data + gif->buffer_size);
+
+	if (decode) {
+		pos = gif->gif_data + frame->frame_pointer;
+
+		/* Ensure this frame is supposed to be decoded */
+		if (frame->display == false) {
+			return GIF_OK;
+		}
+
+		/* Ensure the frame is in range to decode */
+		if (frame_idx > gif->frame_count_partial) {
+			return GIF_INSUFFICIENT_DATA;
+		}
+
+		/* Done if frame is already decoded */
+		if ((int)frame_idx == gif->decoded_frame) {
+			return GIF_OK;
+		}
+	} else {
+		pos = (uint8_t *)(gif->gif_data + gif->buffer_position);
+
+		/* Check if we've finished */
+		if (pos < end && pos[0] == GIF_TRAILER) {
+			return GIF_OK;
+		}
+
+		/* We could theoretically get some junk data that gives us
+		 * millions of frames, so we ensure that we don't have a
+		 * silly number. */
+		if (frame_idx > 4096) {
+			return GIF_FRAME_DATA_ERROR;
+		}
 	}
 
 	/* Initialise any extensions */
-	ret = gif__parse_frame_extensions(gif, frame, &pos, true);
+	ret = gif__parse_frame_extensions(gif, frame, &pos, !decode);
 	if (ret != GIF_OK) {
 		goto cleanup;
 	}
 
-	ret = gif__parse_image_descriptor(gif, frame, &pos, true);
+	ret = gif__parse_image_descriptor(gif, frame, &pos, !decode);
 	if (ret != GIF_OK) {
 		goto cleanup;
 	}
 
-	ret = gif__parse_colour_table(gif, frame, &pos, false);
+	ret = gif__parse_colour_table(gif, frame, &pos, decode);
 	if (ret != GIF_OK) {
 		goto cleanup;
 	}
 
-	ret = gif__parse_image_data(gif, frame, &pos, false);
-	if (ret != GIF_OK) {
-		goto cleanup;
-	}
-
-cleanup:
-	gif->buffer_position = pos - gif->gif_data;
-
-	return ret;
-}
-
-/**
- * decode a gif frame
- *
- * \param gif gif animation context.
- * \param frame The frame number to decode.
- * \param clear_image flag for image data being cleared instead of plotted.
- */
-static gif_result gif_internal_decode_frame(
-		struct gif_animation *gif,
-		uint32_t frame_idx)
-{
-	uint8_t *pos;
-	gif_result ret;
-	struct gif_frame *frame;
-
-	/* Ensure the frame is in range to decode */
-	if (frame_idx > gif->frame_count_partial) {
-		return GIF_INSUFFICIENT_DATA;
-	}
-
-	/* Done if frame is already decoded */
-	if (((int)frame_idx == gif->decoded_frame)) {
-		return GIF_OK;
-	}
-
-	frame = gif__get_frame(gif, frame_idx);
-	if (frame == NULL) {
-		return GIF_INSUFFICIENT_MEMORY;
-	}
-
-	/* Ensure this frame is supposed to be decoded */
-	if (frame->display == false) {
-		return GIF_OK;
-	}
-
-	/* Get the start of our frame data and the end of the GIF data. */
-	pos = gif->gif_data + frame->frame_pointer;
-
-	/* Skip any extensions because they have already been processed */
-	ret = gif__parse_frame_extensions(gif, frame, &pos, false);
-	if (ret != GIF_OK) {
-		goto cleanup;
-	}
-
-	ret = gif__parse_image_descriptor(gif, frame, &pos, false);
-	if (ret != GIF_OK) {
-		goto cleanup;
-	}
-
-	ret = gif__parse_colour_table(gif, frame, &pos, true);
-	if (ret != GIF_OK) {
-		goto cleanup;
-	}
-
-	ret = gif__parse_image_data(gif, frame, &pos, true);
+	ret = gif__parse_image_data(gif, frame, &pos, decode);
 	if (ret != GIF_OK) {
 		goto cleanup;
 	}
 
 cleanup:
+	if (!decode) {
+		gif->buffer_position = pos - gif->gif_data;
+	}
+
 	return ret;
 }
-
 
 /* exported function documented in libnsgif.h */
 void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks)
@@ -1294,7 +1253,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 	}
 
 	/* Repeatedly try to initialise frames */
-	while ((ret = gif_initialise_frame(gif, gif->frame_count)) == GIF_WORKING);
+	while ((ret = gif__process_frame(gif, gif->frame_count, false)) == GIF_WORKING);
 
 	/* If there was a memory error tell the caller */
 	if ((ret == GIF_INSUFFICIENT_MEMORY) ||
@@ -1317,7 +1276,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, unsigned char *data)
 /* exported function documented in libnsgif.h */
 gif_result gif_decode_frame(gif_animation *gif, unsigned int frame)
 {
-	return gif_internal_decode_frame(gif, frame);
+	return gif__process_frame(gif, frame, true);
 }
 
 
