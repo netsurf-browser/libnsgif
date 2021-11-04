@@ -979,17 +979,16 @@ static gif_result gif_initialise_frame(
 		uint32_t frame_idx)
 {
 	gif_result ret;
+	uint8_t *gif_end;
+	uint8_t *gif_data;
 	struct gif_frame *frame;
-	uint8_t *gif_data, *gif_end;
-	int gif_bytes;
 
 	/* Get our buffer position etc. */
 	gif_data = (uint8_t *)(gif->gif_data + gif->buffer_position);
 	gif_end = (uint8_t *)(gif->gif_data + gif->buffer_size);
-	gif_bytes = (gif_end - gif_data);
 
 	/* Check if we've finished */
-	if ((gif_bytes > 0) && (gif_data[0] == GIF_TRAILER)) {
+	if (gif_data < gif_end && (gif_data[0] == GIF_TRAILER)) {
 		return GIF_OK;
 	}
 
@@ -1006,7 +1005,6 @@ static gif_result gif_initialise_frame(
 	}
 
 	/* Initialise any extensions */
-	gif->buffer_position = gif_data - gif->gif_data;
 	ret = gif__parse_frame_extensions(gif, frame, true);
 	if (ret != GIF_OK) {
 		return ret;
