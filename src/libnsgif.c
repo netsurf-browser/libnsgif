@@ -247,21 +247,56 @@ static gif_result gif__recover_frame(
 	return GIF_OK;
 }
 
-static uint32_t gif_interlaced_line(int height, int y)
+/**
+ * Get the next line for GIF decode.
+ *
+ * Note that the step size must be initialised to 24 at the start of the frame
+ * (when y == 0).  This is because of the first two passes of the frame have
+ * the same step size of 8, and the step size is used to determine the current
+ * pass.
+ *
+ * \param[in]     height     Frame height in pixels.
+ * \param[in,out] y          Current row, starting from 0, updated on exit.
+ * \param[in,out] step       Current step starting with 24, updated on exit.
+ * \return true if there is a row to process, false at the end of the frame.
+ */
+static inline bool gif__deinterlace(uint32_t height, uint32_t *y, uint8_t *step)
 {
-	if ((y << 3) < height) {
-		return (y << 3);
+	*y += *step & 0xf;
+
+	if (*y < height) return true;
+
+	switch (*step) {
+	case 24: *y = 4; *step = 8; if (*y < height) return true;
+	         /* Fall through. */
+	case  8: *y = 2; *step = 4; if (*y < height) return true;
+	         /* Fall through. */
+	case  4: *y = 1; *step = 2; if (*y < height) return true;
+	         /* Fall through. */
+	default:
+		break;
 	}
-	y -= ((height + 7) >> 3);
-	if ((y << 3) < (height - 4)) {
-		return (y << 3) + 4;
+
+	return false;
+}
+
+/**
+ * Get the next line for GIF decode.
+ *
+ * \param[in]     interlace  Non-zero if the frame is not interlaced.
+ * \param[in]     height     Frame height in pixels.
+ * \param[in,out] y          Current row, starting from 0, updated on exit.
+ * \param[in,out] step       Current step starting with 24, updated on exit.
+ * \return true if there is a row to process, false at the end of the frame.
+ */
+static inline bool gif__next_row(uint32_t interlace,
+		uint32_t height, uint32_t *y, uint8_t *step)
+{
+	if (!interlace) {
+		return (++*y != height);
+	} else {
+		return gif__deinterlace(height, y, step);
 	}
-	y -= ((height + 3) >> 3);
-	if ((y << 2) < (height - 2)) {
-		return (y << 2) + 2;
-	}
-	y -= ((height + 1) >> 2);
-	return (y << 1) + 1;
 }
 
 static gif_result gif__decode_complex(
@@ -276,9 +311,15 @@ static gif_result gif__decode_complex(
 		uint32_t *restrict frame_data,
 		uint32_t *restrict colour_table)
 {
-	uint32_t available = 0;
-	gif_result ret = GIF_OK;
 	lzw_result res;
+	gif_result ret = GIF_OK;
+	uint32_t available = 0;
+	uint8_t step = 24;
+	uint32_t y = 0;
+
+	if (height == 0) {
+		return GIF_OK;
+	}
 
 	/* Initialise the LZW decoding */
 	res = lzw_decode_init(gif->lzw_ctx, data[0],
@@ -288,17 +329,12 @@ static gif_result gif__decode_complex(
 		return gif_error_from_lzw(res);
 	}
 
-	for (uint32_t y = 0; y < height; y++) {
+	do {
 		uint32_t x;
-		uint32_t decode_y;
 		uint32_t *frame_scanline;
 
-		if (interlace) {
-			decode_y = gif_interlaced_line(height, y) + offset_y;
-		} else {
-			decode_y = y + offset_y;
-		}
-		frame_scanline = frame_data + offset_x + (decode_y * gif->width);
+		frame_scanline = frame_data + offset_x +
+				(y + offset_y) * gif->width;
 
 		x = width;
 		while (x > 0) {
@@ -338,7 +374,8 @@ static gif_result gif__decode_complex(
 				}
 			}
 		}
-	}
+	} while (gif__next_row(interlace, height, &y, &step));
+
 	return ret;
 }
 
