@@ -810,40 +810,32 @@ static gif_result gif__parse_image_descriptor(
 }
 
 /**
- * Get a frame's colour table.
+ * Extract a GIF colour table into a LibNSGIF colour table buffer.
  *
- * Sets up gif->colour_table for the frame.
- *
- * \param[in] gif    The gif object we're decoding.
- * \param[in] frame  The frame to get the colour table for.
+ * \param[in] gif                   The gif object we're decoding.
+ * \param[in] colour_table          The colour table to populate.
+ * \param[in] colour_table_entries  The number of colour table entries.
+ * \param[in] pos                   Current position in data, updated on exit.
+ * \param[in] decode                Whether to decode the colour table.
  * \return GIF_OK on success, appropriate error otherwise.
  */
-static gif_result gif__parse_colour_table(
+static gif_result gif__colour_table_extract(
 		struct gif_animation *gif,
-		struct gif_frame *frame,
+		uint32_t *colour_table,
+		size_t colour_table_entries,
 		const uint8_t **pos,
 		bool decode)
 {
-	unsigned colour_table_size;
 	const uint8_t *data = *pos;
 	size_t len = gif->gif_data + gif->buffer_size - data;
 
-	assert(gif != NULL);
-	assert(frame != NULL);
-
-	if ((frame->flags & GIF_COLOUR_TABLE_MASK) == 0) {
-		gif->colour_table = gif->global_colour_table;
-		return GIF_OK;
-	}
-
-	colour_table_size = 2 << (frame->flags & GIF_COLOUR_TABLE_SIZE_MASK);
-	if (len < colour_table_size * 3) {
+	if (len < colour_table_entries * 3) {
 		return GIF_INSUFFICIENT_FRAME_DATA;
 	}
 
 	if (decode) {
-		int count = colour_table_size;
-		uint8_t *entry = (uint8_t *)gif->local_colour_table;
+		int count = colour_table_entries;
+		uint8_t *entry = (uint8_t *)colour_table;
 
 		while (count--) {
 			/* Gif colour map contents are r,g,b.
@@ -861,8 +853,43 @@ static gif_result gif__parse_colour_table(
 		}
 	}
 
+	*pos += colour_table_entries * 3;
+	return GIF_OK;
+}
+
+/**
+ * Get a frame's colour table.
+ *
+ * Sets up gif->colour_table for the frame.
+ *
+ * \param[in] gif    The gif object we're decoding.
+ * \param[in] frame  The frame to get the colour table for.
+ * \return GIF_OK on success, appropriate error otherwise.
+ */
+static gif_result gif__parse_colour_table(
+		struct gif_animation *gif,
+		struct gif_frame *frame,
+		const uint8_t **pos,
+		bool decode)
+{
+	gif_result ret;
+
+	assert(gif != NULL);
+	assert(frame != NULL);
+
+	if ((frame->flags & GIF_COLOUR_TABLE_MASK) == 0) {
+		gif->colour_table = gif->global_colour_table;
+		return GIF_OK;
+	}
+
+	ret = gif__colour_table_extract(gif, gif->local_colour_table,
+			2 << (frame->flags & GIF_COLOUR_TABLE_SIZE_MASK),
+			pos, decode);
+	if (ret != GIF_OK) {
+		return ret;
+	}
+
 	gif->colour_table = gif->local_colour_table;
-	*pos += colour_table_size * 3;
 	return GIF_OK;
 }
 
