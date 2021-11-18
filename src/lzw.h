@@ -4,6 +4,7 @@
  *                http://www.opensource.org/licenses/mit-license.php
  *
  * Copyright 2017 Michael Drake <michael.drake@codethink.co.uk>
+ * Copyright 2021 Michael Drake <tlsa@netsurf-browser.org>
  */
 
 #ifndef LZW_H_

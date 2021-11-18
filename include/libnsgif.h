@@ -1,6 +1,7 @@
 /*
  * Copyright 2004 Richard Wilson <richard.wilson@netsurf-browser.org>
  * Copyright 2008 Sean Fox <dyntryx@gmail.com>
+ * Copyright 2013-2021 Michael Drake <tlsa@netsurf-browser.org>
  *
  * This file is part of NetSurf's libnsgif, http://www.netsurf-browser.org/
  * Licenced under the MIT License,
