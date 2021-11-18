@@ -830,7 +830,11 @@ static gif_result gif__colour_table_extract(
 	size_t len = gif->gif_data + gif->buffer_size - data;
 
 	if (len < colour_table_entries * 3) {
-		return GIF_INSUFFICIENT_FRAME_DATA;
+		if (colour_table == gif->local_colour_table) {
+			return GIF_INSUFFICIENT_FRAME_DATA;
+		} else {
+			return GIF_INSUFFICIENT_DATA;
+		}
 	}
 
 	if (decode) {
@@ -1164,7 +1168,6 @@ static gif_result gif__parse_header(
 gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 {
 	const uint8_t *gif_data;
-	uint32_t index;
 	gif_result ret;
 
 	/* Initialize values */
@@ -1289,27 +1292,14 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 	if (gif->global_colour_table[0] == GIF_PROCESS_COLOURS) {
 		/* Check for a global colour map signified by bit 7 */
 		if (gif->global_colours) {
-			if (gif->buffer_size < (gif->colour_table_size * 3 + GIF_STANDARD_HEADER_SIZE)) {
-				return GIF_INSUFFICIENT_DATA;
+			ret = gif__colour_table_extract(gif,
+					gif->global_colour_table,
+					gif->colour_table_size,
+					&gif_data, true);
+			if (ret != GIF_OK) {
+				return ret;
 			}
-			for (index = 0; index < gif->colour_table_size; index++) {
-				/* Gif colour map contents are r,g,b.
-				 *
-				 * We want to pack them bytewise into the
-				 * colour table, such that the red component
-				 * is in byte 0 and the alpha component is in
-				 * byte 3.
-				 */
-				uint8_t *entry = (uint8_t *) &gif->
-						       global_colour_table[index];
 
-				entry[0] = gif_data[0]; /* r */
-				entry[1] = gif_data[1]; /* g */
-				entry[2] = gif_data[2]; /* b */
-				entry[3] = 0xff;        /* a */
-
-				gif_data += 3;
-			}
 			gif->buffer_position = (gif_data - gif->gif_data);
 		} else {
 			/* Create a default colour table with the first two
