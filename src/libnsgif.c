@@ -1091,6 +1091,47 @@ void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks)
 	gif->prev_index = GIF_INVALID_FRAME;
 }
 
+/**
+ * Read GIF header.
+ *
+ * 6-byte GIF file header is:
+ *
+ *  +0   3CHARS   Signature ('GIF')
+ *  +3   3CHARS   Version ('87a' or '89a')
+ *
+ * \param[in]      gif     The GIF object we're decoding.
+ * \param[in,out]  pos     The current buffer position, updated on success.
+ * \param[in]      strict  Whether to require a known GIF version.
+ * \return GIF_OK on success, appropriate error otherwise.
+ */
+static gif_result gif__parse_header(
+		struct gif_animation *gif,
+		const uint8_t **pos,
+		bool strict)
+{
+	const uint8_t *data = *pos;
+	size_t len = gif->gif_data + gif->buffer_size - data;
+
+	if (len < 6) {
+		return GIF_INSUFFICIENT_DATA;
+	}
+
+	if (strncmp((const char *) data, "GIF", 3) != 0) {
+		return GIF_DATA_ERROR;
+	}
+	data += 3;
+
+	if (strict == true) {
+		if ((strncmp((const char *) data, "87a", 3) != 0) &&
+		    (strncmp((const char *) data, "89a", 3) != 0)) {
+			return GIF_DATA_ERROR;
+		}
+	}
+	data += 3;
+
+	*pos = data;
+	return GIF_OK;
+}
 
 /* exported function documented in libnsgif.h */
 gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
@@ -1137,23 +1178,10 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 		gif->frame_count_partial = 0;
 		gif->decoded_frame = GIF_INVALID_FRAME;
 
-		/* 6-byte GIF file header is:
-		 *
-		 *  +0   3CHARS   Signature ('GIF')
-		 *  +3   3CHARS   Version ('87a' or '89a')
-		 */
-		if (strncmp((const char *) gif_data, "GIF", 3) != 0) {
-			return GIF_DATA_ERROR;
+		ret = gif__parse_header(gif, &gif_data, false);
+		if (ret != GIF_OK) {
+			return ret;
 		}
-		gif_data += 3;
-
-		/* Ensure GIF reports version 87a or 89a */
-		/*
-		if ((strncmp(gif_data, "87a", 3) != 0) &&
-		    (strncmp(gif_data, "89a", 3) != 0))
-			       LOG(("Unknown GIF format - proceeding anyway"));
-		*/
-		gif_data += 3;
 
 		/* 7-byte Logical Screen Descriptor is:
 		 *
