@@ -1293,7 +1293,6 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 		return GIF_INSUFFICIENT_FRAME_DATA;
 	}
 
-	/* Return how many we got */
 	return ret;
 }
 
