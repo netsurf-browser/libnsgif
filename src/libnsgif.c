@@ -1319,7 +1319,9 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 	}
 
 	/* Repeatedly try to initialise frames */
-	while ((ret = gif__process_frame(gif, gif->frame_count, false)) == GIF_WORKING);
+	do {
+		ret = gif__process_frame(gif, gif->frame_count, false);
+	} while (ret == GIF_WORKING);
 
 	return ret;
 }
