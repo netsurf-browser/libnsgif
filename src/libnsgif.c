@@ -77,7 +77,7 @@ static gif_result gif_error_from_lzw(lzw_result l_res)
 		[LZW_OK]	= GIF_OK,
 		[LZW_OK_EOD]    = GIF_END_OF_FRAME,
 		[LZW_NO_MEM]    = GIF_INSUFFICIENT_MEMORY,
-		[LZW_NO_DATA]   = GIF_INSUFFICIENT_FRAME_DATA,
+		[LZW_NO_DATA]   = GIF_INSUFFICIENT_DATA,
 		[LZW_EOI_CODE]  = GIF_FRAME_DATA_ERROR,
 		[LZW_BAD_ICODE] = GIF_FRAME_DATA_ERROR,
 		[LZW_BAD_CODE]  = GIF_FRAME_DATA_ERROR,
@@ -560,7 +560,7 @@ static gif_result gif__update_bitmap(
  * \param[in] frame  The gif object we're decoding.
  * \param[in] data   The data to decode.
  * \param[in] len    Byte length of data.
- * \return GIF_INSUFFICIENT_FRAME_DATA if more data is needed,
+ * \return GIF_INSUFFICIENT_DATA if more data is needed,
  *         GIF_OK for success.
  */
 static gif_result gif__parse_extension_graphic_control(
@@ -581,7 +581,7 @@ static gif_result gif__parse_extension_graphic_control(
 	 *  +5  CHAR    Transparent Color Index
 	 */
 	if (len < 6) {
-		return GIF_INSUFFICIENT_FRAME_DATA;
+		return GIF_INSUFFICIENT_DATA;
 	}
 
 	frame->frame_delay = data[3] | (data[4] << 8);
@@ -616,7 +616,7 @@ static gif_result gif__parse_extension_graphic_control(
  * \param[in] gif   The gif object we're decoding.
  * \param[in] data  The data to decode.
  * \param[in] len   Byte length of data.
- * \return GIF_INSUFFICIENT_FRAME_DATA if more data is needed,
+ * \return GIF_INSUFFICIENT_DATA if more data is needed,
  *         GIF_OK for success.
  */
 static gif_result gif__parse_extension_application(
@@ -633,7 +633,7 @@ static gif_result gif__parse_extension_application(
 	 *  +13   1-256   Application Data (Data sub-blocks)
 	 */
 	if (len < 17) {
-		return GIF_INSUFFICIENT_FRAME_DATA;
+		return GIF_INSUFFICIENT_DATA;
 	}
 
 	if ((data[1] == 0x0b) &&
@@ -651,7 +651,7 @@ static gif_result gif__parse_extension_application(
  * \param[in] gif     The gif object we're decoding.
  * \param[in] frame   The frame to parse extensions for.
  * \param[in] decode  Whether to decode or skip over the extension.
- * \return GIF_INSUFFICIENT_FRAME_DATA if more data is needed,
+ * \return GIF_INSUFFICIENT_DATA if more data is needed,
  *         GIF_OK for success.
  */
 static gif_result gif__parse_frame_extensions(
@@ -673,7 +673,7 @@ static gif_result gif__parse_frame_extensions(
 		gif_bytes--;
 
 		if (gif_bytes == 0) {
-			return GIF_INSUFFICIENT_FRAME_DATA;
+			return GIF_INSUFFICIENT_DATA;
 		}
 
 		/* Switch on extension label */
@@ -715,7 +715,7 @@ static gif_result gif__parse_frame_extensions(
 			 * the extension size itself
 			 */
 			if (gif_bytes < 2) {
-				return GIF_INSUFFICIENT_FRAME_DATA;
+				return GIF_INSUFFICIENT_DATA;
 			}
 			gif_data += 2 + gif_data[1];
 		}
@@ -725,7 +725,7 @@ static gif_result gif__parse_frame_extensions(
 		while (gif_data < gif_end && gif_data[0] != GIF_BLOCK_TERMINATOR) {
 			gif_data += gif_data[0] + 1;
 			if (gif_data >= gif_end) {
-				return GIF_INSUFFICIENT_FRAME_DATA;
+				return GIF_INSUFFICIENT_DATA;
 			}
 		}
 		gif_data++;
@@ -779,7 +779,7 @@ static gif_result gif__parse_image_descriptor(
 	assert(frame != NULL);
 
 	if (len < GIF_IMAGE_DESCRIPTOR_LEN) {
-		return GIF_INSUFFICIENT_FRAME_DATA;
+		return GIF_INSUFFICIENT_DATA;
 	}
 
 	if (decode) {
@@ -830,11 +830,7 @@ static gif_result gif__colour_table_extract(
 	size_t len = gif->gif_data + gif->buffer_size - data;
 
 	if (len < colour_table_entries * 3) {
-		if (colour_table == gif->local_colour_table) {
-			return GIF_INSUFFICIENT_FRAME_DATA;
-		} else {
-			return GIF_INSUFFICIENT_DATA;
-		}
+		return GIF_INSUFFICIENT_DATA;
 	}
 
 	if (decode) {
@@ -935,7 +931,7 @@ static gif_result gif__parse_image_data(
 			/* Fall through. */
 		case 1: if (data[0] == GIF_TRAILER) return GIF_OK;
 			/* Fall through. */
-		case 0: return GIF_INSUFFICIENT_FRAME_DATA;
+		case 0: return GIF_INSUFFICIENT_DATA;
 	}
 
 	minimum_code_size = data[0];
@@ -953,7 +949,7 @@ static gif_result gif__parse_image_data(
 		len--;
 
 		while (block_size != 1) {
-			if (len < 1) return GIF_INSUFFICIENT_FRAME_DATA;
+			if (len < 1) return GIF_INSUFFICIENT_DATA;
 			block_size = data[0] + 1;
 			/* Check if the frame data runs off the end of the file	*/
 			if (block_size > len) {
@@ -971,7 +967,7 @@ static gif_result gif__parse_image_data(
 
 		/* Check if we've finished */
 		if (len < 1) {
-			return GIF_INSUFFICIENT_FRAME_DATA;
+			return GIF_INSUFFICIENT_DATA;
 		} else {
 			if (data[0] == GIF_TRAILER) {
 				return GIF_OK;
@@ -1026,10 +1022,9 @@ static struct gif_frame *gif__get_frame(
  * \param[in] frame_idx The frame number to decode.
  * \param[in] decode    Whether to decode the graphical image data.
  * \return error code
- *         - GIF_INSUFFICIENT_DATA for insufficient data to do anything
+ *         - GIF_INSUFFICIENT_DATA reached unexpected end of source data.
  *         - GIF_FRAME_DATA_ERROR for GIF frame data error
  *         - GIF_INSUFFICIENT_MEMORY for insufficient memory to process
- *         - GIF_INSUFFICIENT_FRAME_DATA for insufficient data to complete the frame
  *         - GIF_DATA_ERROR for GIF error (invalid frame header)
  *         - GIF_OK for successful decoding
  *         - GIF_WORKING for successful decoding if more frames are expected
@@ -1325,19 +1320,6 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 
 	/* Repeatedly try to initialise frames */
 	while ((ret = gif__process_frame(gif, gif->frame_count, false)) == GIF_WORKING);
-
-	/* If there was a memory error tell the caller */
-	if ((ret == GIF_INSUFFICIENT_MEMORY) ||
-	    (ret == GIF_DATA_ERROR)) {
-		return ret;
-	}
-
-	/* If we didn't have some frames then a GIF_INSUFFICIENT_DATA becomes a
-	 * GIF_INSUFFICIENT_FRAME_DATA
-	 */
-	if (ret == GIF_INSUFFICIENT_DATA && gif->frame_count_partial > 0) {
-		return GIF_INSUFFICIENT_FRAME_DATA;
-	}
 
 	return ret;
 }

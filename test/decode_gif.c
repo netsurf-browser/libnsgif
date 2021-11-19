@@ -113,9 +113,6 @@ static void warning(const char *context, gif_result code)
         fprintf(stderr, "%s failed: ", context);
         switch (code)
         {
-        case GIF_INSUFFICIENT_FRAME_DATA:
-                fprintf(stderr, "GIF_INSUFFICIENT_FRAME_DATA");
-                break;
         case GIF_FRAME_DATA_ERROR:
                 fprintf(stderr, "GIF_FRAME_DATA_ERROR");
                 break;

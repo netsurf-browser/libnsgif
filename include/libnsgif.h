@@ -23,9 +23,9 @@
 typedef enum {
 	GIF_WORKING = 1,
 	GIF_OK = 0,
-	GIF_INSUFFICIENT_FRAME_DATA = -1,
+	GIF_INSUFFICIENT_DATA = -1,
+	GIF_INSUFFICIENT_FRAME_DATA = GIF_INSUFFICIENT_DATA,
 	GIF_FRAME_DATA_ERROR = -2,
-	GIF_INSUFFICIENT_DATA = -3,
 	GIF_DATA_ERROR = -4,
 	GIF_INSUFFICIENT_MEMORY = -5,
 	GIF_FRAME_NO_DISPLAY = -6,
@@ -166,11 +166,9 @@ void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks);
  *
  * \return Error return value.
  *         - GIF_FRAME_DATA_ERROR for GIF frame data error
- *         - GIF_INSUFFICIENT_FRAME_DATA for insufficient data to process
- *                                     any more frames
+ *         - GIF_INSUFFICIENT_DATA reached unexpected end of source data
  *         - GIF_INSUFFICIENT_MEMORY for memory error
  *         - GIF_DATA_ERROR for GIF error
- *         - GIF_INSUFFICIENT_DATA for insufficient data to do anything
  *         - GIF_OK for successful decoding
  *         - GIF_WORKING for successful decoding if more frames are expected
  */
@@ -181,9 +179,8 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data);
  *
  * \return Error return value.
  *         - GIF_FRAME_DATA_ERROR for GIF frame data error
- *         - GIF_INSUFFICIENT_FRAME_DATA for insufficient data to complete the frame
  *         - GIF_DATA_ERROR for GIF error (invalid frame header)
- *         - GIF_INSUFFICIENT_DATA for insufficient data to do anything
+ *         - GIF_INSUFFICIENT_DATA reached unexpected end of source data
  *         - GIF_INSUFFICIENT_MEMORY for insufficient memory to process
  *         - GIF_OK for successful decoding
  */
