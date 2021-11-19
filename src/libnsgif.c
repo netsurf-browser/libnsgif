@@ -30,7 +30,6 @@
  * \todo Plain text and comment extensions should be implemented.
  */
 
-
 /** Maximum colour table size */
 #define GIF_MAX_COLOURS 256
 
@@ -1326,13 +1325,11 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 	return ret;
 }
 
-
 /* exported function documented in libnsgif.h */
 gif_result gif_decode_frame(gif_animation *gif, unsigned int frame)
 {
 	return gif__process_frame(gif, frame, true);
 }
-
 
 /* exported function documented in libnsgif.h */
 void gif_finalise(gif_animation *gif)
