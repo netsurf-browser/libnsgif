@@ -1158,6 +1158,48 @@ static gif_result gif__parse_header(
 	return GIF_OK;
 }
 
+/**
+ * Read Logical Screen Descriptor.
+ *
+ * 7-byte Logical Screen Descriptor is:
+ *
+ *  +0   SHORT   Logical Screen Width
+ *  +2   SHORT   Logical Screen Height
+ *  +4   CHAR    __Packed Fields__
+ *               1BIT    Global Colour Table Flag
+ *               3BITS   Colour Resolution
+ *               1BIT    Sort Flag
+ *               3BITS   Size of Global Colour Table
+ *  +5   CHAR    Background Colour Index
+ *  +6   CHAR    Pixel Aspect Ratio
+ *
+ * \param[in]      gif     The GIF object we're decoding.
+ * \param[in,out]  pos     The current buffer position, updated on success.
+ * \return GIF_OK on success, appropriate error otherwise.
+ */
+static gif_result gif__parse_logical_screen_descriptor(
+		struct gif_animation *gif,
+		const uint8_t **pos)
+{
+	const uint8_t *data = *pos;
+	size_t len = gif->gif_data + gif->buffer_size - data;
+
+	if (len < 7) {
+		return GIF_INSUFFICIENT_DATA;
+	}
+
+	gif->width = data[0] | (data[1] << 8);
+	gif->height = data[2] | (data[3] << 8);
+	gif->global_colours = data[4] & GIF_COLOUR_TABLE_MASK;
+	gif->colour_table_size = 2 << (data[4] & GIF_COLOUR_TABLE_SIZE_MASK);
+	gif->bg_index = data[5];
+	gif->aspect_ratio = data[6];
+	gif->loop_count = 1;
+
+	*pos += 7;
+	return GIF_OK;
+}
+
 /* exported function documented in libnsgif.h */
 gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 {
@@ -1174,13 +1216,6 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 		if (res != LZW_OK) {
 			return gif_error_from_lzw(res);
 		}
-	}
-
-	/* Check for sufficient data to be a GIF (6-byte header + 7-byte
-	 * logical screen descriptor)
-	 */
-	if (gif->buffer_size < GIF_STANDARD_HEADER_SIZE) {
-		return GIF_INSUFFICIENT_DATA;
 	}
 
 	/* Get our current processing position */
@@ -1207,26 +1242,10 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 			return ret;
 		}
 
-		/* 7-byte Logical Screen Descriptor is:
-		 *
-		 *  +0   SHORT   Logical Screen Width
-		 *  +2   SHORT   Logical Screen Height
-		 *  +4   CHAR    __Packed Fields__
-		 *               1BIT    Global Colour Table Flag
-		 *               3BITS   Colour Resolution
-		 *               1BIT    Sort Flag
-		 *               3BITS   Size of Global Colour Table
-		 *  +5   CHAR    Background Colour Index
-		 *  +6   CHAR    Pixel Aspect Ratio
-		 */
-		gif->width = gif_data[0] | (gif_data[1] << 8);
-		gif->height = gif_data[2] | (gif_data[3] << 8);
-		gif->global_colours = (gif_data[4] & GIF_COLOUR_TABLE_MASK);
-		gif->colour_table_size = (2 << (gif_data[4] & GIF_COLOUR_TABLE_SIZE_MASK));
-		gif->bg_index = gif_data[5];
-		gif->aspect_ratio = gif_data[6];
-		gif->loop_count = 1;
-		gif_data += 7;
+		ret = gif__parse_logical_screen_descriptor(gif, &gif_data);
+		if (ret != GIF_OK) {
+			return ret;
+		}
 
 		/* Some broken GIFs report the size as the screen size they
 		 * were created in. As such, we detect for the common cases and
