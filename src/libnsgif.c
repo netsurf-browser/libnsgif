@@ -67,9 +67,6 @@ enum gif_disposal {
 #define GIF_BLOCK_TERMINATOR 0x00
 #define GIF_TRAILER 0x3b
 
-/** standard GIF header size */
-#define GIF_STANDARD_HEADER_SIZE 13
-
 static gif_result gif_error_from_lzw(lzw_result l_res)
 {
 	static const gif_result g_res[] = {
@@ -1247,6 +1244,9 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 			return ret;
 		}
 
+		/* Remember we've done this now */
+		gif->buffer_position = gif_data - gif->gif_data;
+
 		/* Some broken GIFs report the size as the screen size they
 		 * were created in. As such, we detect for the common cases and
 		 * set the sizes as 0 if they are found which results in the
@@ -1286,16 +1286,11 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 		 * termination block) Although generally useless, the GIF
 		 * specification does not expressly prohibit this
 		 */
-		if (gif->buffer_size == (GIF_STANDARD_HEADER_SIZE + 1)) {
+		if (gif->buffer_size == gif->buffer_position + 1) {
 			if (gif_data[0] == GIF_TRAILER) {
 				return GIF_OK;
-			} else {
-				return GIF_INSUFFICIENT_DATA;
 			}
 		}
-
-		/* Remember we've done this now */
-		gif->buffer_position = gif_data - gif->gif_data;
 	}
 
 	/*  Do the colour map if we haven't already. As the top byte is always
