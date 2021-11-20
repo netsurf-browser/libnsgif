@@ -1207,14 +1207,6 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 	gif->buffer_size = size;
 	gif->gif_data = data;
 
-	if (gif->lzw_ctx == NULL) {
-		lzw_result res = lzw_context_create(
-				(struct lzw_ctx **)&gif->lzw_ctx);
-		if (res != LZW_OK) {
-			return gif_error_from_lzw(res);
-		}
-	}
-
 	/* Get our current processing position */
 	gif_data = gif->gif_data + gif->buffer_position;
 
@@ -1328,6 +1320,14 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 			gif->bg_colour = gif->global_colour_table[bg_idx];
 		} else {
 			gif->bg_colour = gif->global_colour_table[0];
+		}
+	}
+
+	if (gif->lzw_ctx == NULL) {
+		lzw_result res = lzw_context_create(
+				(struct lzw_ctx **)&gif->lzw_ctx);
+		if (res != LZW_OK) {
+			return gif_error_from_lzw(res);
 		}
 	}
 
