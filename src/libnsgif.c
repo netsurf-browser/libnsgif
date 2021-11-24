@@ -10,13 +10,11 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
-#include "libnsgif.h"
-#include "utils/log.h"
 
+#include "libnsgif.h"
 #include "lzw.h"
 
 /**
