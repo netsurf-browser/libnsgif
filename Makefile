@@ -19,7 +19,7 @@ include $(NSSHARED)/makefiles/Makefile.tools
 TESTRUNNER = test/runtest.sh $(BUILDDIR) $(EXEEXT)
 
 # Toolchain flags
-WARNFLAGS := -Wall -W -Wundef -Wpointer-arith -Wcast-align \
+WARNFLAGS := -Wall -Wextra -W -Wundef -Wpointer-arith -Wcast-align \
 	-Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes \
 	-Wmissing-declarations -Wnested-externs -pedantic
 # BeOS/Haiku standard library headers create warnings
