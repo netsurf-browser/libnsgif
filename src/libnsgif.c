@@ -8,14 +8,14 @@
  *                http://www.opensource.org/licenses/mit-license.php
  */
 
-#include <stdbool.h>
-#include <stdint.h>
-#include <string.h>
-#include <stdlib.h>
 #include <assert.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h>
 
-#include "libnsgif.h"
 #include "lzw.h"
+#include "libnsgif.h"
 
 /**
  *
