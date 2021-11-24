@@ -150,7 +150,7 @@ static inline void gif__bitmap_modified(
  * Helper to tell the client that whether the bitmap is opaque.
  *
  * \param[in]  gif    The gif object we're decoding.
- * \param[in]  frmae  The frame that has been decoded.
+ * \param[in]  frame  The frame that has been decoded.
  */
 static inline void gif__bitmap_set_opaque(
 		const struct gif_animation *gif,
@@ -646,6 +646,7 @@ static gif_result gif__parse_extension_application(
  *
  * \param[in] gif     The gif object we're decoding.
  * \param[in] frame   The frame to parse extensions for.
+ * \param[in] pos     Current position in data, updated on exit.
  * \param[in] decode  Whether to decode or skip over the extension.
  * \return GIF_INSUFFICIENT_DATA if more data is needed,
  *         GIF_OK for success.
@@ -754,8 +755,10 @@ static gif_result gif__parse_frame_extensions(
  *              2BITS   Reserved
  *              3BITS   Size of Local Colour Table
  *
- * \param[in] gif    The gif object we're decoding.
- * \param[in] frame  The frame to parse an image descriptor for.
+ * \param[in] gif     The gif object we're decoding.
+ * \param[in] frame   The frame to parse an image descriptor for.
+ * \param[in] pos     Current position in data, updated on exit.
+ * \param[in] decode  Whether to decode the image descriptor.
  * \return GIF_OK on success, appropriate error otherwise.
  */
 static gif_result gif__parse_image_descriptor(
@@ -858,8 +861,10 @@ static gif_result gif__colour_table_extract(
  *
  * Sets up gif->colour_table for the frame.
  *
- * \param[in] gif    The gif object we're decoding.
- * \param[in] frame  The frame to get the colour table for.
+ * \param[in] gif     The gif object we're decoding.
+ * \param[in] frame   The frame to get the colour table for.
+ * \param[in] pos     Current position in data, updated on exit.
+ * \param[in] decode  Whether to decode the colour table.
  * \return GIF_OK on success, appropriate error otherwise.
  */
 static gif_result gif__parse_colour_table(
@@ -894,8 +899,10 @@ static gif_result gif__parse_colour_table(
  *
  * Sets up gif->colour_table for the frame.
  *
- * \param[in] gif    The gif object we're decoding.
- * \param[in] frame  The frame to get the colour table for.
+ * \param[in] gif     The gif object we're decoding.
+ * \param[in] frame   The frame to parse image data for.
+ * \param[in] pos     Current position in data, updated on exit.
+ * \param[in] decode  Whether to decode the image data.
  * \return GIF_OK on success, appropriate error otherwise.
  */
 static gif_result gif__parse_image_data(
