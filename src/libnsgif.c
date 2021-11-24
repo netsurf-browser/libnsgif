@@ -67,7 +67,13 @@ enum gif_disposal {
 #define GIF_BLOCK_TERMINATOR 0x00
 #define GIF_TRAILER 0x3b
 
-static gif_result gif_error_from_lzw(lzw_result l_res)
+/**
+ * Convert an LZW result code to equivalent GIF result code.
+ *
+ * \param[in]  l_res  LZW response code.
+ * \return GIF result code.
+ */
+static gif_result gif__error_from_lzw(lzw_result l_res)
 {
 	static const gif_result g_res[] = {
 		[LZW_OK]	= GIF_OK,
@@ -91,7 +97,7 @@ static gif_result gif_error_from_lzw(lzw_result l_res)
  * \param height The height of the sprite
  * \return GIF_INSUFFICIENT_MEMORY for a memory error GIF_OK for success
  */
-static gif_result gif_initialise_sprite(
+static gif_result gif__initialise_sprite(
 		struct gif_animation *gif,
 		uint32_t width,
 		uint32_t height)
@@ -122,7 +128,7 @@ static inline uint32_t* gif__bitmap_get(
 	gif_result ret;
 
 	/* Make sure we have a buffer to decode to. */
-	ret = gif_initialise_sprite(gif, gif->width, gif->height);
+	ret = gif__initialise_sprite(gif, gif->width, gif->height);
 	if (ret != GIF_OK) {
 		return NULL;
 	}
@@ -323,7 +329,7 @@ static gif_result gif__decode_complex(
 			gif->gif_data, gif->buffer_size,
 			data + 1 - gif->gif_data);
 	if (res != LZW_OK) {
-		return gif_error_from_lzw(res);
+		return gif__error_from_lzw(res);
 	}
 
 	do {
@@ -343,7 +349,7 @@ static gif_result gif__decode_complex(
 					if (res == LZW_OK_EOD) {
 						ret = GIF_OK;
 					} else {
-						ret = gif_error_from_lzw(res);
+						ret = gif__error_from_lzw(res);
 					}
 					break;
 				}
@@ -396,7 +402,7 @@ static gif_result gif__decode_simple(
 			gif->gif_data, gif->buffer_size,
 			data + 1 - gif->gif_data);
 	if (res != LZW_OK) {
-		return gif_error_from_lzw(res);
+		return gif__error_from_lzw(res);
 	}
 
 	frame_data += (offset_y * gif->width);
@@ -411,7 +417,7 @@ static gif_result gif__decode_simple(
 			if (res == LZW_OK_EOD) {
 				ret = GIF_OK;
 			} else {
-				ret = gif_error_from_lzw(res);
+				ret = gif__error_from_lzw(res);
 			}
 			break;
 		}
@@ -1334,7 +1340,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 		lzw_result res = lzw_context_create(
 				(struct lzw_ctx **)&gif->lzw_ctx);
 		if (res != LZW_OK) {
-			return gif_error_from_lzw(res);
+			return gif__error_from_lzw(res);
 		}
 	}
 
