@@ -1353,7 +1353,7 @@ gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data)
 }
 
 /* exported function documented in libnsgif.h */
-gif_result gif_decode_frame(gif_animation *gif, unsigned int frame)
+gif_result gif_decode_frame(gif_animation *gif, uint32_t frame)
 {
 	return gif__process_frame(gif, frame, true);
 }
