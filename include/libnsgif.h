@@ -43,8 +43,8 @@ typedef struct gif_frame {
 
 	/** offset (in bytes) to the GIF frame data */
 	uint32_t frame_pointer;
-	/** whether the frame has previously been used */
-	bool virgin;
+	/** whether the frame has previously been decoded. */
+	bool decoded;
 	/** whether the frame is totally opaque */
 	bool opaque;
 	/** whether a full image redraw is required */

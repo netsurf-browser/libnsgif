@@ -619,9 +619,9 @@ static gif_result gif__update_bitmap(
 
 	gif__bitmap_modified(gif);
 
-	if (frame->virgin) {
+	if (!frame->decoded) {
 		frame->opaque = gif__bitmap_get_opaque(gif);
-		frame->virgin = false;
+		frame->decoded = true;
 	}
 	gif__bitmap_set_opaque(gif, frame);
 
@@ -1096,7 +1096,7 @@ static struct gif_frame *gif__get_frame(
 		frame->disposal_method = 0;
 		frame->frame_delay = 100;
 		frame->display = false;
-		frame->virgin = true;
+		frame->decoded = false;
 	}
 
 	return frame;
