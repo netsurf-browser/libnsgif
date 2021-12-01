@@ -55,13 +55,8 @@ enum nsgif_disposal {
 #define NSGIF_INTERLACE_MASK 0x40
 #define NSGIF_COLOUR_TABLE_MASK 0x80
 #define NSGIF_COLOUR_TABLE_SIZE_MASK 0x07
-#define NSGIF_EXTENSION_INTRODUCER 0x21
-#define NSGIF_EXTENSION_GRAPHIC_CONTROL 0xf9
 #define NSGIF_DISPOSAL_MASK 0x1c
 #define NSGIF_TRANSPARENCY_MASK 0x01
-#define NSGIF_EXTENSION_COMMENT 0xfe
-#define NSGIF_EXTENSION_PLAIN_TEXT 0x01
-#define NSGIF_EXTENSION_APPLICATION 0xff
 #define NSGIF_BLOCK_TERMINATOR 0x00
 #define NSGIF_TRAILER 0x3b
 
@@ -734,12 +729,19 @@ static nsgif_result nsgif__parse_frame_extensions(
 		const uint8_t **pos,
 		bool decode)
 {
+	enum {
+		GIF_EXT_INTRODUCER      = 0x21,
+		GIF_EXT_GRAPHIC_CONTROL = 0xf9,
+		GIF_EXT_COMMENT         = 0xfe,
+		GIF_EXT_PLAIN_TEXT      = 0x01,
+		GIF_EXT_APPLICATION     = 0xff,
+	};
 	const uint8_t *nsgif_data = *pos;
 	const uint8_t *nsgif_end = gif->nsgif_data + gif->buffer_size;
 	int nsgif_bytes = nsgif_end - nsgif_data;
 
 	/* Initialise the extensions */
-	while (nsgif_bytes > 0 && nsgif_data[0] == NSGIF_EXTENSION_INTRODUCER) {
+	while (nsgif_bytes > 0 && nsgif_data[0] == GIF_EXT_INTRODUCER) {
 		bool block_step = true;
 		nsgif_result ret;
 
@@ -752,7 +754,7 @@ static nsgif_result nsgif__parse_frame_extensions(
 
 		/* Switch on extension label */
 		switch (nsgif_data[0]) {
-		case NSGIF_EXTENSION_GRAPHIC_CONTROL:
+		case GIF_EXT_GRAPHIC_CONTROL:
 			if (decode) {
 				ret = nsgif__parse_extension_graphic_control(
 						frame, nsgif_data, nsgif_bytes);
@@ -762,7 +764,7 @@ static nsgif_result nsgif__parse_frame_extensions(
 			}
 			break;
 
-		case NSGIF_EXTENSION_APPLICATION:
+		case GIF_EXT_APPLICATION:
 			if (decode) {
 				ret = nsgif__parse_extension_application(
 						gif, nsgif_data, nsgif_bytes);
@@ -772,7 +774,7 @@ static nsgif_result nsgif__parse_frame_extensions(
 			}
 			break;
 
-		case NSGIF_EXTENSION_COMMENT:
+		case GIF_EXT_COMMENT:
 			/* Move the pointer to the first data sub-block Skip 1
 			 * byte for the extension label. */
 			++nsgif_data;
