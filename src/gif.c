@@ -52,7 +52,6 @@ enum nsgif_disposal {
 };
 
 /* GIF Flags */
-#define NSGIF_INTERLACE_MASK 0x40
 #define NSGIF_COLOUR_TABLE_MASK 0x80
 #define NSGIF_COLOUR_TABLE_SIZE_MASK 0x07
 #define NSGIF_BLOCK_TERMINATOR 0x00
@@ -497,12 +496,16 @@ static inline nsgif_result nsgif__decode(
 		const uint8_t *data,
 		uint32_t *restrict frame_data)
 {
+	enum {
+		GIF_MASK_INTERLACE = 0x40,
+	};
+
 	nsgif_result ret;
 	uint32_t offset_x = frame->redraw_x;
 	uint32_t offset_y = frame->redraw_y;
 	uint32_t width = frame->redraw_width;
 	uint32_t height = frame->redraw_height;
-	uint32_t interlace = frame->flags & NSGIF_INTERLACE_MASK;
+	uint32_t interlace = frame->flags & GIF_MASK_INTERLACE;
 	uint32_t transparency_index = frame->transparency_index;
 	uint32_t *restrict colour_table = gif->colour_table;
 
