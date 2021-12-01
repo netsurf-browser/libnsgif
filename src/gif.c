@@ -55,8 +55,6 @@ enum nsgif_disposal {
 #define NSGIF_INTERLACE_MASK 0x40
 #define NSGIF_COLOUR_TABLE_MASK 0x80
 #define NSGIF_COLOUR_TABLE_SIZE_MASK 0x07
-#define NSGIF_DISPOSAL_MASK 0x1c
-#define NSGIF_TRANSPARENCY_MASK 0x01
 #define NSGIF_BLOCK_TERMINATOR 0x00
 #define NSGIF_TRAILER 0x3b
 
@@ -636,6 +634,11 @@ static nsgif_result nsgif__parse_extension_graphic_control(
 		const uint8_t *data,
 		size_t len)
 {
+	enum {
+		GIF_MASK_TRANSPARENCY = 0x01,
+		GIF_MASK_DISPOSAL     = 0x1c,
+	};
+
 	/* 6-byte Graphic Control Extension is:
 	 *
 	 *  +0  CHAR    Graphic Control Label
@@ -653,12 +656,12 @@ static nsgif_result nsgif__parse_extension_graphic_control(
 	}
 
 	frame->frame_delay = data[3] | (data[4] << 8);
-	if (data[2] & NSGIF_TRANSPARENCY_MASK) {
+	if (data[2] & GIF_MASK_TRANSPARENCY) {
 		frame->transparency = true;
 		frame->transparency_index = data[5];
 	}
 
-	frame->disposal_method = ((data[2] & NSGIF_DISPOSAL_MASK) >> 2);
+	frame->disposal_method = ((data[2] & GIF_MASK_DISPOSAL) >> 2);
 	/* I have encountered documentation and GIFs in the
 	 * wild that use 0x04 to restore the previous frame,
 	 * rather than the officially documented 0x03.  I
