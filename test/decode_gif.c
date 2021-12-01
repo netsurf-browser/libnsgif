@@ -15,7 +15,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#include "../include/libnsgif.h"
+#include "../include/nsgif.h"
 
 #define BYTES_PER_PIXEL 4
 #define MAX_IMAGE_BYTES (48 * 1024 * 1024)

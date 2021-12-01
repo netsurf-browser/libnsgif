@@ -1,4 +1,4 @@
 # Sources
-DIR_SOURCES := libnsgif.c lzw.c
+DIR_SOURCES := gif.c lzw.c
 
 include $(NSBUILD)/Makefile.subdir

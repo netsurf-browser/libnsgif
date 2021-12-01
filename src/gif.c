@@ -15,7 +15,7 @@
 #include <stdbool.h>
 
 #include "lzw.h"
-#include "libnsgif.h"
+#include "nsgif.h"
 
 /**
  *
