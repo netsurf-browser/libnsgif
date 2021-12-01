@@ -101,22 +101,22 @@ static unsigned char *load_file(const char *path, size_t *data_size)
 	return buffer;
 }
 
-static void warning(const char *context, gif_result code)
+static void warning(const char *context, nsgif_result code)
 {
 	fprintf(stderr, "%s failed: ", context);
 	switch (code)
 	{
-	case GIF_FRAME_DATA_ERROR:
-		fprintf(stderr, "GIF_FRAME_DATA_ERROR");
+	case NSGIF_FRAME_DATA_ERROR:
+		fprintf(stderr, "NSGIF_FRAME_DATA_ERROR");
 		break;
-	case GIF_INSUFFICIENT_DATA:
-		fprintf(stderr, "GIF_INSUFFICIENT_DATA");
+	case NSGIF_INSUFFICIENT_DATA:
+		fprintf(stderr, "NSGIF_INSUFFICIENT_DATA");
 		break;
-	case GIF_DATA_ERROR:
-		fprintf(stderr, "GIF_DATA_ERROR");
+	case NSGIF_DATA_ERROR:
+		fprintf(stderr, "NSGIF_DATA_ERROR");
 		break;
-	case GIF_INSUFFICIENT_MEMORY:
-		fprintf(stderr, "GIF_INSUFFICIENT_MEMORY");
+	case NSGIF_INSUFFICIENT_MEMORY:
+		fprintf(stderr, "NSGIF_INSUFFICIENT_MEMORY");
 		break;
 	default:
 		fprintf(stderr, "unknown code %i", code);
@@ -125,11 +125,11 @@ static void warning(const char *context, gif_result code)
 	fprintf(stderr, "\n");
 }
 
-static void write_ppm(FILE* fh, const char *name, gif_animation *gif,
+static void write_ppm(FILE* fh, const char *name, nsgif_animation *gif,
 		bool no_write)
 {
 	unsigned int i;
-	gif_result code;
+	nsgif_result code;
 
 	if (!no_write) {
 		fprintf(fh, "P3\n");
@@ -147,9 +147,9 @@ static void write_ppm(FILE* fh, const char *name, gif_animation *gif,
 		unsigned int row, col;
 		unsigned char *image;
 
-		code = gif_decode_frame(gif, i);
-		if (code != GIF_OK)
-			warning("gif_decode_frame", code);
+		code = nsgif_decode_frame(gif, i);
+		if (code != NSGIF_OK)
+			warning("nsgif_decode_frame", code);
 
 		if (!gif->frames[i].display) {
 			continue;
@@ -174,7 +174,7 @@ static void write_ppm(FILE* fh, const char *name, gif_animation *gif,
 
 int main(int argc, char *argv[])
 {
-	gif_bitmap_callback_vt bitmap_callbacks = {
+	nsgif_bitmap_cb_vt bitmap_callbacks = {
 		bitmap_create,
 		bitmap_destroy,
 		bitmap_get_buffer,
@@ -182,9 +182,9 @@ int main(int argc, char *argv[])
 		bitmap_test_opaque,
 		bitmap_modified
 	};
-	gif_animation gif;
+	nsgif_animation gif;
 	size_t size;
-	gif_result code;
+	nsgif_result code;
 	unsigned char *data;
 	FILE *outf = stdout;
 	bool no_write = false;
@@ -213,21 +213,21 @@ int main(int argc, char *argv[])
 	}
 
 	/* create our gif animation */
-	gif_create(&gif, &bitmap_callbacks);
+	nsgif_create(&gif, &bitmap_callbacks);
 
 	/* load file into memory */
 	data = load_file(argv[1], &size);
 
 	/* begin decoding */
 	do {
-		code = gif_initialise(&gif, size, data);
-		if (code != GIF_OK && code != GIF_WORKING) {
-			warning("gif_initialise", code);
-			gif_finalise(&gif);
+		code = nsgif_initialise(&gif, size, data);
+		if (code != NSGIF_OK && code != NSGIF_WORKING) {
+			warning("nsgif_initialise", code);
+			nsgif_finalise(&gif);
 			free(data);
 			return 1;
 		}
-	} while (code != GIF_OK);
+	} while (code != NSGIF_OK);
 
 	write_ppm(outf, argv[1], &gif, no_write);
 
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* clean up */
-	gif_finalise(&gif);
+	nsgif_finalise(&gif);
 	free(data);
 
 	return 0;

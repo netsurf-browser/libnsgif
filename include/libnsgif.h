@@ -13,27 +13,27 @@
  * Interface to progressive animated GIF file decoding.
  */
 
-#ifndef _LIBNSGIF_H_
-#define _LIBNSGIF_H_
+#ifndef NSNSGIF_H
+#define NSNSGIF_H
 
 #include <stdint.h>
 #include <stdbool.h>
 
 /* Error return values */
 typedef enum {
-	GIF_WORKING = 1,
-	GIF_OK = 0,
-	GIF_INSUFFICIENT_DATA = -1,
-	GIF_INSUFFICIENT_FRAME_DATA = GIF_INSUFFICIENT_DATA,
-	GIF_FRAME_DATA_ERROR = -2,
-	GIF_DATA_ERROR = -4,
-	GIF_INSUFFICIENT_MEMORY = -5,
-	GIF_FRAME_NO_DISPLAY = -6,
-	GIF_END_OF_FRAME = -7
-} gif_result;
+	NSGIF_WORKING = 1,
+	NSGIF_OK = 0,
+	NSGIF_INSUFFICIENT_DATA = -1,
+	NSGIF_INSUFFICIENT_FRAME_DATA = NSGIF_INSUFFICIENT_DATA,
+	NSGIF_FRAME_DATA_ERROR = -2,
+	NSGIF_DATA_ERROR = -4,
+	NSGIF_INSUFFICIENT_MEMORY = -5,
+	NSGIF_FRAME_NO_DISPLAY = -6,
+	NSGIF_END_OF_FRAME = -7
+} nsgif_result;
 
 /** GIF frame data */
-typedef struct gif_frame {
+typedef struct nsgif_frame {
 	/** whether the frame should be displayed/animated */
 	bool display;
 	/** delay (in cs) before animating the frame */
@@ -65,43 +65,43 @@ typedef struct gif_frame {
 	uint32_t redraw_height;
 	/* Frame flags */
 	uint32_t flags;
-} gif_frame;
+} nsgif_frame;
 
 /* API for Bitmap callbacks */
-typedef void* (*gif_bitmap_cb_create)(int width, int height);
-typedef void (*gif_bitmap_cb_destroy)(void *bitmap);
-typedef uint8_t* (*gif_bitmap_cb_get_buffer)(void *bitmap);
-typedef void (*gif_bitmap_cb_set_opaque)(void *bitmap, bool opaque);
-typedef bool (*gif_bitmap_cb_test_opaque)(void *bitmap);
-typedef void (*gif_bitmap_cb_modified)(void *bitmap);
+typedef void* (*nsgif_bitmap_cb_create)(int width, int height);
+typedef void (*nsgif_bitmap_cb_destroy)(void *bitmap);
+typedef uint8_t* (*nsgif_bitmap_cb_get_buffer)(void *bitmap);
+typedef void (*nsgif_bitmap_cb_set_opaque)(void *bitmap, bool opaque);
+typedef bool (*nsgif_bitmap_cb_test_opaque)(void *bitmap);
+typedef void (*nsgif_bitmap_cb_modified)(void *bitmap);
 
 /** Bitmap callbacks function table */
-typedef struct gif_bitmap_callback_vt {
+typedef struct nsgif_bitmap_cb_vt {
 	/** Create a bitmap. */
-	gif_bitmap_cb_create bitmap_create;
+	nsgif_bitmap_cb_create create;
 	/** Free a bitmap. */
-	gif_bitmap_cb_destroy bitmap_destroy;
+	nsgif_bitmap_cb_destroy destroy;
 	/** Return a pointer to the pixel data in a bitmap. */
-	gif_bitmap_cb_get_buffer bitmap_get_buffer;
+	nsgif_bitmap_cb_get_buffer get_buffer;
 
 	/* Members below are optional */
 
 	/** Sets whether a bitmap should be plotted opaque. */
-	gif_bitmap_cb_set_opaque bitmap_set_opaque;
+	nsgif_bitmap_cb_set_opaque set_opaque;
 	/** Tests whether a bitmap has an opaque alpha channel. */
-	gif_bitmap_cb_test_opaque bitmap_test_opaque;
+	nsgif_bitmap_cb_test_opaque test_opaque;
 	/** The bitmap image has changed, so flush any persistent cache. */
-	gif_bitmap_cb_modified bitmap_modified;
-} gif_bitmap_callback_vt;
+	nsgif_bitmap_cb_modified modified;
+} nsgif_bitmap_cb_vt;
 
 /** GIF animation data */
-typedef struct gif_animation {
+typedef struct nsgif_animation {
 	/** LZW decode context */
 	void *lzw_ctx;
 	/** callbacks for bitmap functions */
-	gif_bitmap_callback_vt bitmap_callbacks;
+	nsgif_bitmap_cb_vt bitmap;
 	/** pointer to GIF data */
-	const uint8_t *gif_data;
+	const uint8_t *nsgif_data;
 	/** width of GIF (may increase during decoding) */
 	uint32_t width;
 	/** height of GIF (may increase during decoding) */
@@ -111,7 +111,7 @@ typedef struct gif_animation {
 	/** number of frames partially decoded */
 	uint32_t frame_count_partial;
 	/** decoded frames */
-	gif_frame *frames;
+	nsgif_frame *frames;
 	/** current frame decoded to bitmap */
 	int decoded_frame;
 	/** currently decoded image; stored as bitmap from bitmap_create callback */
@@ -144,7 +144,7 @@ typedef struct gif_animation {
 	/** current colour table */
 	uint32_t *colour_table;
 
-	/** previous frame for GIF_FRAME_RESTORE */
+	/** previous frame for NSGIF_FRAME_RESTORE */
 	void *prev_frame;
 	/** previous frame index */
 	int prev_index;
@@ -152,12 +152,12 @@ typedef struct gif_animation {
 	unsigned prev_width;
 	/** previous frame height */
 	unsigned prev_height;
-} gif_animation;
+} nsgif_animation;
 
 /**
- * Initialises necessary gif_animation members.
+ * Initialises necessary nsgif_animation members.
  */
-void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks);
+void nsgif_create(nsgif_animation *gif, nsgif_bitmap_cb_vt *bitmap_callbacks);
 
 /**
  * Initialises any workspace held by the animation and attempts to decode
@@ -165,30 +165,30 @@ void gif_create(gif_animation *gif, gif_bitmap_callback_vt *bitmap_callbacks);
  * If an error occurs, all previously decoded frames are retained.
  *
  * \return Error return value.
- *         - GIF_FRAME_DATA_ERROR for GIF frame data error
- *         - GIF_INSUFFICIENT_DATA reached unexpected end of source data
- *         - GIF_INSUFFICIENT_MEMORY for memory error
- *         - GIF_DATA_ERROR for GIF error
- *         - GIF_OK for successful decoding
- *         - GIF_WORKING for successful decoding if more frames are expected
+ *         - NSGIF_FRAME_DATA_ERROR for GIF frame data error
+ *         - NSGIF_INSUFFICIENT_DATA reached unexpected end of source data
+ *         - NSGIF_INSUFFICIENT_MEMORY for memory error
+ *         - NSGIF_DATA_ERROR for GIF error
+ *         - NSGIF_OK for successful decoding
+ *         - NSGIF_WORKING for successful decoding if more frames are expected
  */
-gif_result gif_initialise(gif_animation *gif, size_t size, const uint8_t *data);
+nsgif_result nsgif_initialise(nsgif_animation *gif, size_t size, const uint8_t *data);
 
 /**
  * Decodes a GIF frame.
  *
  * \return Error return value.
- *         - GIF_FRAME_DATA_ERROR for GIF frame data error
- *         - GIF_DATA_ERROR for GIF error (invalid frame header)
- *         - GIF_INSUFFICIENT_DATA reached unexpected end of source data
- *         - GIF_INSUFFICIENT_MEMORY for insufficient memory to process
- *         - GIF_OK for successful decoding
+ *         - NSGIF_FRAME_DATA_ERROR for GIF frame data error
+ *         - NSGIF_DATA_ERROR for GIF error (invalid frame header)
+ *         - NSGIF_INSUFFICIENT_DATA reached unexpected end of source data
+ *         - NSGIF_INSUFFICIENT_MEMORY for insufficient memory to process
+ *         - NSGIF_OK for successful decoding
  */
-gif_result gif_decode_frame(gif_animation *gif, uint32_t frame);
+nsgif_result nsgif_decode_frame(nsgif_animation *gif, uint32_t frame);
 
 /**
  * Releases any workspace held by a gif
  */
-void gif_finalise(gif_animation *gif);
+void nsgif_finalise(nsgif_animation *gif);
 
 #endif
