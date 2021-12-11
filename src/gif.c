@@ -1173,7 +1173,6 @@ static nsgif_result nsgif__process_frame(
 		}
 	}
 
-	/* Initialise any extensions */
 	ret = nsgif__parse_frame_extensions(gif, frame, &pos, !decode);
 	if (ret != NSGIF_OK) {
 		goto cleanup;
