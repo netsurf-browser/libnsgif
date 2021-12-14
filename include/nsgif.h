@@ -102,7 +102,7 @@ typedef struct nsgif_bitmap_cb_vt {
 } nsgif_bitmap_cb_vt;
 
 /** GIF animation data */
-typedef struct nsgif_animation {
+typedef struct nsgif {
 	/** LZW decode context */
 	void *lzw_ctx;
 	/** callbacks for bitmap functions */
@@ -159,12 +159,12 @@ typedef struct nsgif_animation {
 	unsigned prev_width;
 	/** previous frame height */
 	unsigned prev_height;
-} nsgif_animation;
+} nsgif;
 
 /**
- * Initialises necessary nsgif_animation members.
+ * Initialises necessary nsgif members.
  */
-void nsgif_create(nsgif_animation *gif, nsgif_bitmap_cb_vt *bitmap_callbacks);
+void nsgif_create(nsgif *gif, nsgif_bitmap_cb_vt *bitmap_callbacks);
 
 /**
  * Initialises any workspace held by the animation and attempts to decode
@@ -179,7 +179,7 @@ void nsgif_create(nsgif_animation *gif, nsgif_bitmap_cb_vt *bitmap_callbacks);
  *         - NSGIF_OK for successful decoding
  *         - NSGIF_WORKING for successful decoding if more frames are expected
  */
-nsgif_result nsgif_initialise(nsgif_animation *gif, size_t size, const uint8_t *data);
+nsgif_result nsgif_initialise(nsgif *gif, size_t size, const uint8_t *data);
 
 /**
  * Decodes a GIF frame.
@@ -191,11 +191,11 @@ nsgif_result nsgif_initialise(nsgif_animation *gif, size_t size, const uint8_t *
  *         - NSGIF_INSUFFICIENT_MEMORY for insufficient memory to process
  *         - NSGIF_OK for successful decoding
  */
-nsgif_result nsgif_decode_frame(nsgif_animation *gif, uint32_t frame);
+nsgif_result nsgif_decode_frame(nsgif *gif, uint32_t frame);
 
 /**
  * Releases any workspace held by a gif
  */
-void nsgif_finalise(nsgif_animation *gif);
+void nsgif_finalise(nsgif *gif);
 
 #endif

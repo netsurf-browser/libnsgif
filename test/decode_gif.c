@@ -125,7 +125,7 @@ static void warning(const char *context, nsgif_result code)
 	fprintf(stderr, "\n");
 }
 
-static void write_ppm(FILE* fh, const char *name, nsgif_animation *gif,
+static void write_ppm(FILE* fh, const char *name, nsgif *gif,
 		bool no_write)
 {
 	unsigned int i;
@@ -182,7 +182,7 @@ int main(int argc, char *argv[])
 		bitmap_test_opaque,
 		bitmap_modified
 	};
-	nsgif_animation gif;
+	nsgif gif;
 	size_t size;
 	nsgif_result code;
 	unsigned char *data;
