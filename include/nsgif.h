@@ -32,6 +32,18 @@ typedef enum {
 	NSGIF_END_OF_FRAME = -7
 } nsgif_result;
 
+/** GIF rectangle structure. */
+typedef struct nsgif_rect {
+	/** x co-ordinate of redraw rectangle */
+	uint32_t x;
+	/** y co-ordinate of redraw rectangle */
+	uint32_t y;
+	/** width of redraw rectangle */
+	uint32_t w;
+	/** height of redraw rectangle */
+	uint32_t h;
+} nsgif_rect;
+
 /** GIF frame data */
 typedef struct nsgif_frame {
 	/** whether the frame should be displayed/animated */
@@ -55,16 +67,11 @@ typedef struct nsgif_frame {
 	bool transparency;
 	/** the index designating a transparent pixel */
 	uint32_t transparency_index;
-	/** x co-ordinate of redraw rectangle */
-	uint32_t redraw_x;
-	/** y co-ordinate of redraw rectangle */
-	uint32_t redraw_y;
-	/** width of redraw rectangle */
-	uint32_t redraw_width;
-	/** height of redraw rectangle */
-	uint32_t redraw_height;
 	/* Frame flags */
 	uint32_t flags;
+
+	/** Frame's redraw rectangle. */
+	nsgif_rect redraw;
 } nsgif_frame;
 
 /* API for Bitmap callbacks */

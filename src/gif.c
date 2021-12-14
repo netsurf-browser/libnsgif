@@ -501,10 +501,10 @@ static inline nsgif_result nsgif__decode(
 	};
 
 	nsgif_result ret;
-	uint32_t offset_x = frame->redraw_x;
-	uint32_t offset_y = frame->redraw_y;
-	uint32_t width = frame->redraw_width;
-	uint32_t height = frame->redraw_height;
+	uint32_t width = frame->redraw.w;
+	uint32_t height = frame->redraw.h;
+	uint32_t offset_x = frame->redraw.x;
+	uint32_t offset_y = frame->redraw.y;
 	uint32_t interlace = frame->flags & GIF_MASK_INTERLACE;
 	uint32_t transparency_index = frame->transparency_index;
 	uint32_t *restrict colour_table = gif->colour_table;
@@ -539,10 +539,10 @@ static void nsgif__restore_bg(
 		memset(bitmap, NSGIF_TRANSPARENT_COLOUR,
 				gif->width * gif->height * sizeof(*bitmap));
 	} else {
-		uint32_t offset_x = frame->redraw_x;
-		uint32_t offset_y = frame->redraw_y;
-		uint32_t width = frame->redraw_width;
-		uint32_t height = frame->redraw_height;
+		uint32_t width = frame->redraw.w;
+		uint32_t height = frame->redraw.h;
+		uint32_t offset_x = frame->redraw.x;
+		uint32_t offset_y = frame->redraw.y;
 
 		width -= gif__clip(offset_x, width, gif->width);
 		height -= gif__clip(offset_y, height, gif->height);
@@ -879,10 +879,10 @@ static nsgif_result nsgif__parse_image_descriptor(
 		h = data[7] | (data[8] << 8);
 		frame->flags = data[9];
 
-		frame->redraw_x      = x;
-		frame->redraw_y      = y;
-		frame->redraw_width  = w;
-		frame->redraw_height = h;
+		frame->redraw.x = x;
+		frame->redraw.y = y;
+		frame->redraw.w = w;
+		frame->redraw.h = h;
 
 		/* Allow first frame to grow image dimensions. */
 		if (gif->frame_count == 0) {
