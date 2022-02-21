@@ -877,9 +877,15 @@ static gif_result gif__parse_image_descriptor(
 		frame->redraw_width  = w;
 		frame->redraw_height = h;
 
-		/* Frame size may have grown. */
-		gif->width  = (x + w > gif->width ) ? x + w : gif->width;
-		gif->height = (y + h > gif->height) ? y + h : gif->height;
+		/* Allow first frame to grow image dimensions. */
+		if (gif->frame_count == 0) {
+			if (x + w > gif->width) {
+				gif->width = x + w;
+			}
+			if (y + h > gif->height) {
+				gif->height = y + h;
+			}
+		}
 	}
 
 	*pos += GIF_IMAGE_DESCRIPTOR_LEN;
