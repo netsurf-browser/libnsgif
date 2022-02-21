@@ -629,7 +629,7 @@ static gif_result gif__update_bitmap(
 }
 
 /**
- * Parse the application extension
+ * Parse the graphic control extension
  *
  * \param[in] frame  The gif object we're decoding.
  * \param[in] data   The data to decode.
