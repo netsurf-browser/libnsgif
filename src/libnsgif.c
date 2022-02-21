@@ -549,7 +549,10 @@ static void gif__restore_bg(
 		uint32_t width = frame->redraw_width;
 		uint32_t height = frame->redraw_height;
 
-		if (frame->display == false) {
+		width -= gif__clip(offset_x, width, gif->width);
+		height -= gif__clip(offset_y, height, gif->height);
+
+		if (frame->display == false || width == 0) {
 			return;
 		}
 
