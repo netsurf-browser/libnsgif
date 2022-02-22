@@ -50,6 +50,7 @@ echo "Testing GIF decode"
 
 for GIF in $(ls ${GIFTESTS});do
     GIFTESTTOTC=$((GIFTESTTOTC+1))
+    #echo "${GIF}"
     gifdecode ${GIF}
     ECODE=$?
     if [ "${ECODE}" -gt 127 ];then
