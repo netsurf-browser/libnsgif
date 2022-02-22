@@ -18,6 +18,26 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <inttypes.h>
+
+#define NSGIF_INFINITE (UINT32_MAX)
+
+typedef struct nsgif nsgif;
+
+typedef struct nsgif_info {
+	/** width of GIF (may increase during decoding) */
+	uint32_t width;
+	/** height of GIF (may increase during decoding) */
+	uint32_t height;
+	/** number of frames decoded */
+	uint32_t frame_count;
+	/** number of times to loop animation */
+	int loop_max;
+	/** number of animation loops so far */
+	int loop_count;
+
+	uint16_t delay_min;
+} nsgif_info_t;
 
 /* Error return values */
 typedef enum {
@@ -29,50 +49,29 @@ typedef enum {
 	NSGIF_DATA_ERROR = -4,
 	NSGIF_INSUFFICIENT_MEMORY = -5,
 	NSGIF_FRAME_NO_DISPLAY = -6,
-	NSGIF_END_OF_FRAME = -7
+	NSGIF_END_OF_FRAME = -7,
+	NSGIF_FRAME_INVALID = -8,
+	NSGIF_ANIMATION_COMPLETE = -9,
 } nsgif_result;
 
-/** GIF rectangle structure. */
+/**
+ * GIF rectangle structure.
+ *
+ * * Top left coordinate is `(x0, y0)`.
+ * * Width is `x1 - x0`.
+ * * Height is `y1 - y0`.
+ * * Units are pixels.
+ */
 typedef struct nsgif_rect {
-	/** x co-ordinate of redraw rectangle */
-	uint32_t x;
-	/** y co-ordinate of redraw rectangle */
-	uint32_t y;
-	/** width of redraw rectangle */
-	uint32_t w;
-	/** height of redraw rectangle */
-	uint32_t h;
+	/** x co-ordinate of redraw rectangle, left */
+	uint32_t x0;
+	/** y co-ordinate of redraw rectangle, top */
+	uint32_t y0;
+	/** x co-ordinate of redraw rectangle, right */
+	uint32_t x1;
+	/** y co-ordinate of redraw rectangle, bottom */
+	uint32_t y1;
 } nsgif_rect;
-
-/** GIF frame data */
-typedef struct nsgif_frame {
-	/** whether the frame should be displayed/animated */
-	bool display;
-	/** delay (in cs) before animating the frame */
-	uint32_t frame_delay;
-
-	/* Internal members are listed below */
-
-	/** offset (in bytes) to the GIF frame data */
-	uint32_t frame_pointer;
-	/** whether the frame has previously been decoded. */
-	bool decoded;
-	/** whether the frame is totally opaque */
-	bool opaque;
-	/** whether a full image redraw is required */
-	bool redraw_required;
-	/** how the previous frame should be disposed; affects plotting */
-	uint8_t disposal_method;
-	/** whether we acknowledge transparency */
-	bool transparency;
-	/** the index designating a transparent pixel */
-	uint32_t transparency_index;
-	/* Frame flags */
-	uint32_t flags;
-
-	/** Frame's redraw rectangle. */
-	nsgif_rect redraw;
-} nsgif_frame;
 
 /* API for Bitmap callbacks */
 typedef void* (*nsgif_bitmap_cb_create)(int width, int height);
@@ -101,75 +100,36 @@ typedef struct nsgif_bitmap_cb_vt {
 	nsgif_bitmap_cb_modified modified;
 } nsgif_bitmap_cb_vt;
 
-/** GIF animation data */
-typedef struct nsgif {
-	/** LZW decode context */
-	void *lzw_ctx;
-	/** callbacks for bitmap functions */
-	nsgif_bitmap_cb_vt bitmap;
-	/** pointer to GIF data */
-	const uint8_t *nsgif_data;
-	/** width of GIF (may increase during decoding) */
-	uint32_t width;
-	/** height of GIF (may increase during decoding) */
-	uint32_t height;
-	/** number of frames decoded */
-	uint32_t frame_count;
-	/** number of frames partially decoded */
-	uint32_t frame_count_partial;
-	/** decoded frames */
-	nsgif_frame *frames;
-	/** current frame decoded to bitmap */
-	int decoded_frame;
-	/** currently decoded image; stored as bitmap from bitmap_create callback */
-	void *frame_image;
-	/** number of times to loop animation */
-	int loop_count;
-
-	/* Internal members are listed below */
-
-	/** current index into GIF data */
-	uint32_t buffer_position;
-	/** total number of bytes of GIF data available */
-	uint32_t buffer_size;
-	/** current number of frame holders */
-	uint32_t frame_holders;
-	/** background index */
-	uint32_t bg_index;
-	/** background colour */
-	uint32_t bg_colour;
-	/** image aspect ratio (ignored) */
-	uint32_t aspect_ratio;
-	/** size of colour table (in entries) */
-	uint32_t colour_table_size;
-	/** whether the GIF has a global colour table */
-	bool global_colours;
-	/** global colour table */
-	uint32_t *global_colour_table;
-	/** local colour table */
-	uint32_t *local_colour_table;
-	/** current colour table */
-	uint32_t *colour_table;
-
-	/** previous frame for NSGIF_FRAME_RESTORE */
-	void *prev_frame;
-	/** previous frame index */
-	int prev_index;
-	/** previous frame width */
-	unsigned prev_width;
-	/** previous frame height */
-	unsigned prev_height;
-} nsgif;
-
 /**
- * Initialises necessary nsgif members.
+ * Create the NSGIF object.
+ *
+ * \param[in]  bitmap_vt  Bitmap operation functions v-table.
+ * \param[out] gif_out    Return NSGIF object on success.
+ * \return NSGIF_OK on success, or appropriate error otherwise.
  */
-void nsgif_create(nsgif *gif, nsgif_bitmap_cb_vt *bitmap_callbacks);
+nsgif_result nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif **gif_out);
 
 /**
- * Initialises any workspace held by the animation and attempts to decode
- * any information that hasn't already been decoded.
- * If an error occurs, all previously decoded frames are retained.
+ * Scan the source image data.
+ *
+ * This is used to feed the source data into LibNSGIF. This must be called
+ * before calling \ref nsgif_frame_decode.
+ *
+ * It can be called multiple times with, with increasing sizes. If it is called
+ * several times, as more data is available (e.g. slow network fetch) the data
+ * already given to \ref nsgif_data_scan must be provided each time.
+ *
+ * For example, if you call \ref nsgif_data_scan with 25 bytes of data, and then
+ * fetch another 10 bytes, you would need to call \ref nsgif_data with a size of
+ * 35 bytes, and the whole 35 bytes must be contiguous memory. It is safe to
+ * `realloc` the source buffer between calls to \ref nsgif_data_scan. (The
+ * actual data pointer is allowed to be different.)
+ *
+ * If an error occurs, all previously scanned frames are retained.
+ *
+ * \param[in]  gif     The NSGIF object.
+ * \param[in]  size    Number of bytes in data.
+ * \param[in]  data    Raw source GIF data.
  *
  * \return Error return value.
  *         - NSGIF_FRAME_DATA_ERROR for GIF frame data error
@@ -179,11 +139,30 @@ void nsgif_create(nsgif *gif, nsgif_bitmap_cb_vt *bitmap_callbacks);
  *         - NSGIF_OK for successful decoding
  *         - NSGIF_WORKING for successful decoding if more frames are expected
  */
-nsgif_result nsgif_initialise(nsgif *gif, size_t size, const uint8_t *data);
+nsgif_result nsgif_data_scan(
+		nsgif *gif,
+		size_t size,
+		const uint8_t *data);
+
+/**
+ * Prepare to show a frame.
+ *
+ * \param[in]  gif        The NSGIF object.
+ * \param[out] area       The area in pixels that must be redrawn.
+ * \param[out] delay_cs   Time to wait after frame_new before next frame in cs.
+ * \param[out] frame_new  The frame to decode.
+ */
+nsgif_result nsgif_frame_prepare(
+		nsgif *gif,
+		nsgif_rect *area,
+		uint32_t *delay_cs,
+		uint32_t *frame_new);
 
 /**
  * Decodes a GIF frame.
  *
+ * \param[in]  gif    The nsgif object.
+ * \param[in]  frame  The frame number to decode.
  * \return Error return value.
  *         - NSGIF_FRAME_DATA_ERROR for GIF frame data error
  *         - NSGIF_DATA_ERROR for GIF error (invalid frame header)
@@ -191,11 +170,40 @@ nsgif_result nsgif_initialise(nsgif *gif, size_t size, const uint8_t *data);
  *         - NSGIF_INSUFFICIENT_MEMORY for insufficient memory to process
  *         - NSGIF_OK for successful decoding
  */
-nsgif_result nsgif_decode_frame(nsgif *gif, uint32_t frame);
+nsgif_result nsgif_frame_decode(
+		nsgif *gif,
+		uint32_t frame,
+		const uint32_t **buffer);
 
 /**
- * Releases any workspace held by a gif
+ * Reset a GIF animation.
+ *
+ * Some animations are only meant to loop N times, and then show the
+ * final frame forever. This function resets the loop and frame counters,
+ * so that the animation can be replayed without the overhead of recreating
+ * the NSGIF object and rescanning the raw data.
+ *
+ * \param[in]  gif  A NSGIF object.
+ *
+ * \return NSGIF_OK on success, or appropriate error otherwise.
  */
-void nsgif_finalise(nsgif *gif);
+nsgif_result nsgif_reset(
+		nsgif *gif);
+
+/**
+ * Get information about a GIF from an NSGIF object.
+ *
+ * \param[in]  gif  The NSGIF object to get info for.
+ *
+ * \return The gif info, or NULL on error.
+ */
+const nsgif_info_t *nsgif_get_info(const nsgif *gif);
+
+/**
+ * Free a NSGIF object.
+ *
+ * \param[in]  gif  The NSGIF to free.
+ */
+void nsgif_destroy(nsgif *gif);
 
 #endif
