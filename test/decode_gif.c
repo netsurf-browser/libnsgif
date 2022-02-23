@@ -101,7 +101,7 @@ static void warning(const char *context, nsgif_result gif_res)
 	fprintf(stderr, "\n");
 }
 
-static void write_ppm(FILE* fh, const char *name, nsgif *gif, bool no_write)
+static void decode(FILE* fh, const char *name, nsgif *gif, bool write_ppm)
 {
 	nsgif_result gif_res;
 	uint32_t frame_prev = 0;
@@ -109,7 +109,7 @@ static void write_ppm(FILE* fh, const char *name, nsgif *gif, bool no_write)
 
 	info = nsgif_get_info(gif);
 
-	if (!no_write) {
+	if (write_ppm) {
 		fprintf(fh, "P3\n");
 		fprintf(fh, "# %s\n", name);
 		fprintf(fh, "# width                %u \n", info->width);
@@ -148,7 +148,7 @@ static void write_ppm(FILE* fh, const char *name, nsgif *gif, bool no_write)
 			return;
 		}
 
-		if (!no_write) {
+		if (write_ppm) {
 			fprintf(fh, "# frame %u:\n", frame_new);
 			image = (const uint8_t *) buffer;
 			for (uint32_t y = 0; y != info->height; y++) {
@@ -211,18 +211,16 @@ int main(int argc, char *argv[])
 	/* load file into memory */
 	data = load_file(argv[1], &size);
 
-	/* begin decoding */
-	do {
-		gif_res = nsgif_data_scan(gif, size, data);
-		if (gif_res != NSGIF_OK && gif_res != NSGIF_WORKING) {
-			warning("nsgif_data_scan", gif_res);
-			nsgif_destroy(gif);
-			free(data);
-			return 1;
-		}
-	} while (gif_res != NSGIF_OK);
+	/* Scan the raw data */
+	gif_res = nsgif_data_scan(gif, size, data);
+	if (gif_res != NSGIF_OK) {
+		warning("nsgif_data_scan", gif_res);
+		nsgif_destroy(gif);
+		free(data);
+		return 1;
+	}
 
-	write_ppm(outf, argv[1], gif, no_write);
+	decode(outf, argv[1], gif, !no_write);
 
 	if (argc > 2 && !no_write) {
 		fclose(outf);
