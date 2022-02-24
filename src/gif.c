@@ -101,10 +101,6 @@ struct nsgif {
 	void *prev_frame;
 	/** previous frame index */
 	uint32_t prev_index;
-	/** previous frame width */
-	uint32_t prev_width;
-	/** previous frame height */
-	uint32_t prev_height;
 };
 
 /**
@@ -267,7 +263,6 @@ static void nsgif__record_frame(
 		struct nsgif *gif,
 		const uint32_t *bitmap)
 {
-	bool need_alloc = gif->prev_frame == NULL;
 	uint32_t *prev_frame;
 
 	if (gif->decoded_frame == NSGIF_FRAME_INVALID ||
@@ -281,12 +276,7 @@ static void nsgif__record_frame(
 		return;
 	}
 
-	if (gif->prev_frame != NULL &&
-	    gif->info.width * gif->info.height > gif->prev_width * gif->prev_height) {
-		need_alloc = true;
-	}
-
-	if (need_alloc) {
+	if (gif->prev_frame == NULL) {
 		prev_frame = realloc(gif->prev_frame,
 				gif->info.width * gif->info.height * 4);
 		if (prev_frame == NULL) {
@@ -299,8 +289,6 @@ static void nsgif__record_frame(
 	memcpy(prev_frame, bitmap, gif->info.width * gif->info.height * 4);
 
 	gif->prev_frame  = prev_frame;
-	gif->prev_width  = gif->info.width;
-	gif->prev_height = gif->info.height;
 	gif->prev_index  = gif->decoded_frame;
 }
 
@@ -309,19 +297,14 @@ static nsgif_result nsgif__recover_frame(
 		uint32_t *bitmap)
 {
 	const uint32_t *prev_frame = gif->prev_frame;
-	unsigned height = gif->info.height < gif->prev_height ? gif->info.height : gif->prev_height;
-	unsigned width  = gif->info.width  < gif->prev_width  ? gif->info.width  : gif->prev_width;
+	unsigned height = gif->info.height;
+	unsigned width  = gif->info.width;
 
 	if (prev_frame == NULL) {
 		return NSGIF_FRAME_DATA_ERROR;
 	}
 
-	for (unsigned y = 0; y < height; y++) {
-		memcpy(bitmap, prev_frame, width * 4);
-
-		bitmap += gif->info.width;
-		prev_frame += gif->prev_width;
-	}
+	memcpy(bitmap, prev_frame, height * width * sizeof(*bitmap));
 
 	return NSGIF_OK;
 }
