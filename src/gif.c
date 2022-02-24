@@ -17,6 +17,9 @@
 #include "lzw.h"
 #include "nsgif.h"
 
+/** Maximum colour table size */
+#define NSGIF_MAX_COLOURS 256
+
 /** GIF frame data */
 typedef struct nsgif_frame {
 	/** whether the frame should be displayed/animated */
@@ -84,14 +87,15 @@ struct nsgif {
 	uint32_t aspect_ratio;
 	/** size of colour table (in entries) */
 	uint32_t colour_table_size;
+
 	/** whether the GIF has a global colour table */
 	bool global_colours;
-	/** global colour table */
-	uint32_t *global_colour_table;
-	/** local colour table */
-	uint32_t *local_colour_table;
 	/** current colour table */
 	uint32_t *colour_table;
+	/** global colour table */
+	uint32_t global_colour_table[NSGIF_MAX_COLOURS];
+	/** local colour table */
+	uint32_t local_colour_table[NSGIF_MAX_COLOURS];
 
 	/** previous frame for NSGIF_FRAME_RESTORE */
 	void *prev_frame;
@@ -113,9 +117,6 @@ struct nsgif {
  *
  * \todo Plain text and comment extensions should be implemented.
  */
-
-/** Maximum colour table size */
-#define NSGIF_MAX_COLOURS 256
 
 /** Internal flag that the colour table needs to be processed */
 #define NSGIF_PROCESS_COLOURS 0xaa000000
@@ -1005,7 +1006,7 @@ static nsgif_result nsgif__parse_image_descriptor(
  */
 static nsgif_result nsgif__colour_table_extract(
 		struct nsgif *gif,
-		uint32_t *colour_table,
+		uint32_t colour_table[NSGIF_MAX_COLOURS],
 		size_t colour_table_entries,
 		const uint8_t **pos,
 		bool decode)
@@ -1312,12 +1313,6 @@ void nsgif_destroy(nsgif *gif)
 	free(gif->frames);
 	gif->frames = NULL;
 
-	free(gif->local_colour_table);
-	gif->local_colour_table = NULL;
-
-	free(gif->global_colour_table);
-	gif->global_colour_table = NULL;
-
 	free(gif->prev_frame);
 	gif->prev_frame = NULL;
 
@@ -1456,8 +1451,6 @@ nsgif_result nsgif_data_scan(
 		gif->frame_image = NULL;
 		gif->frames = NULL;
 		gif->frame_holders = 0;
-		gif->local_colour_table = NULL;
-		gif->global_colour_table = NULL;
 
 		/* The caller may have been lazy and not reset any values */
 		gif->info.frame_count = 0;
@@ -1493,18 +1486,6 @@ nsgif_result nsgif_data_scan(
 		    ((gif->info.width > 2048) || (gif->info.height > 2048))) {
 			gif->info.width = 1;
 			gif->info.height = 1;
-		}
-
-		/* Allocate some data irrespective of whether we've got any
-		 * colour tables. We always get the maximum size in case a GIF
-		 * is lying to us. It's far better to give the wrong colours
-		 * than to trample over some memory somewhere.
-		*/
-		gif->global_colour_table = calloc(NSGIF_MAX_COLOURS, sizeof(uint32_t));
-		gif->local_colour_table = calloc(NSGIF_MAX_COLOURS, sizeof(uint32_t));
-		if ((gif->global_colour_table == NULL) ||
-		    (gif->local_colour_table == NULL)) {
-			return NSGIF_INSUFFICIENT_MEMORY;
 		}
 
 		/* Set the first colour to a value that will never occur in
