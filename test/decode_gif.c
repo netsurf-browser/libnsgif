@@ -122,7 +122,7 @@ static void decode(FILE* fh, const char *name, nsgif *gif, bool write_ppm)
 
 	/* decode the frames */
 	while (true) {
-		const uint32_t *buffer;
+		nsgif_bitmap_t *buffer;
 		const uint8_t *image;
 		uint32_t frame_new;
 		uint32_t delay_cs;

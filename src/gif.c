@@ -67,7 +67,7 @@ struct nsgif {
 	/** current frame decoded to bitmap */
 	uint32_t decoded_frame;
 	/** currently decoded image; stored as bitmap from bitmap_create callback */
-	void *frame_image;
+	nsgif_bitmap_t *frame_image;
 
 	uint16_t delay_default;
 	/** number of frames partially decoded */
@@ -1685,13 +1685,13 @@ nsgif_result nsgif_frame_prepare(
 nsgif_result nsgif_frame_decode(
 		nsgif *gif,
 		uint32_t frame,
-		const uint32_t **buffer)
+		nsgif_bitmap_t **bitmap)
 {
 	uint32_t start_frame;
 	nsgif_result ret = NSGIF_OK;
 
 	if (gif->decoded_frame == frame) {
-		*buffer = gif->frame_image;
+		*bitmap = gif->frame_image;
 		return NSGIF_OK;
 
 	} else if (gif->decoded_frame >= frame ||
@@ -1710,7 +1710,7 @@ nsgif_result nsgif_frame_decode(
 		}
 	}
 
-	*buffer = gif->frame_image;
+	*bitmap = gif->frame_image;
 	return ret;
 }
 

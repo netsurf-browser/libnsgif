@@ -73,31 +73,66 @@ typedef struct nsgif_rect {
 	uint32_t y1;
 } nsgif_rect;
 
-/* API for Bitmap callbacks */
-typedef void* (*nsgif_bitmap_cb_create)(int width, int height);
-typedef void (*nsgif_bitmap_cb_destroy)(void *bitmap);
-typedef uint8_t* (*nsgif_bitmap_cb_get_buffer)(void *bitmap);
-typedef void (*nsgif_bitmap_cb_set_opaque)(void *bitmap, bool opaque);
-typedef bool (*nsgif_bitmap_cb_test_opaque)(void *bitmap);
-typedef void (*nsgif_bitmap_cb_modified)(void *bitmap);
+/**
+ * Client bitmap type.
+ *
+ * These are client-created and destroyed, via the \ref bitmap callbacks,
+ * but they are owned by a \ref nsgif.
+ */
+typedef void nsgif_bitmap_t;
 
 /** Bitmap callbacks function table */
 typedef struct nsgif_bitmap_cb_vt {
-	/** Create a bitmap. */
-	nsgif_bitmap_cb_create create;
-	/** Free a bitmap. */
-	nsgif_bitmap_cb_destroy destroy;
-	/** Return a pointer to the pixel data in a bitmap. */
-	nsgif_bitmap_cb_get_buffer get_buffer;
+	/**
+	 * Callback to create a bitmap with the given dimensions.
+	 *
+	 * \param[in]  width   Required bitmap width in pixels.
+	 * \param[in]  height  Required bitmap height in pixels.
+	 * \return pointer to client's bitmap structure or NULL on error.
+	 */
+	nsgif_bitmap_t* (*create)(int width, int height);
 
-	/* Members below are optional */
+	/**
+	 * Callback to free a bitmap.
+	 *
+	 * \param[in]  bitmap  The bitmap to destroy.
+	 */
+	void (*destroy)(nsgif_bitmap_t *bitmap);
 
-	/** Sets whether a bitmap should be plotted opaque. */
-	nsgif_bitmap_cb_set_opaque set_opaque;
-	/** Tests whether a bitmap has an opaque alpha channel. */
-	nsgif_bitmap_cb_test_opaque test_opaque;
-	/** The bitmap image has changed, so flush any persistent cache. */
-	nsgif_bitmap_cb_modified modified;
+	/**
+	 * Get pointer to pixel buffer in a bitmap.
+	 *
+	 * The pixel buffer must be `width * height * sizeof(uint32_t)`.
+	 *
+	 * \param[in]  bitmap  The bitmap.
+	 * \return pointer to bitmap's pixel buffer.
+	 */
+	uint8_t* (*get_buffer)(nsgif_bitmap_t *bitmap);
+
+	/* The following functions are optional. */
+
+	/**
+	 * Set whether a bitmap can be plotted opaque.
+	 *
+	 * \param[in]  bitmap  The bitmap.
+	 * \param[in]  opaque  Whether the current frame is opaque.
+	 */
+	void (*set_opaque)(nsgif_bitmap_t *bitmap, bool opaque);
+
+	/**
+	 * Tests whether a bitmap has an opaque alpha channel.
+	 *
+	 * \param[in]  bitmap  The bitmap.
+	 * \return true if the bitmap is opaque, false otherwise.
+	 */
+	bool (*test_opaque)(nsgif_bitmap_t *bitmap);
+
+	/**
+	 * Bitmap modified notification.
+	 *
+	 * \param[in]  bitmap  The bitmap.
+	 */
+	void (*modified)(nsgif_bitmap_t *bitmap);
 } nsgif_bitmap_cb_vt;
 
 /**
@@ -161,8 +196,10 @@ nsgif_result nsgif_frame_prepare(
 /**
  * Decodes a GIF frame.
  *
- * \param[in]  gif    The nsgif object.
- * \param[in]  frame  The frame number to decode.
+ * \param[in]  gif     The nsgif object.
+ * \param[in]  frame   The frame number to decode.
+ * \param[out] bitmap  On success, returns pointer to the client-allocated,
+ *                     nsgif-owned client bitmap structure.
  * \return Error return value.
  *         - NSGIF_FRAME_DATA_ERROR for GIF frame data error
  *         - NSGIF_DATA_ERROR for GIF error (invalid frame header)
@@ -173,7 +210,7 @@ nsgif_result nsgif_frame_prepare(
 nsgif_result nsgif_frame_decode(
 		nsgif *gif,
 		uint32_t frame,
-		const uint32_t **buffer);
+		nsgif_bitmap_t **bitmap);
 
 /**
  * Reset a GIF animation.
