@@ -78,32 +78,15 @@ static uint8_t *load_file(const char *path, size_t *data_size)
 	return buffer;
 }
 
-static void warning(const char *context, nsgif_result gif_res)
+static void warning(const char *context, nsgif_error err)
 {
-	fprintf(stderr, "%s failed: ", context);
-	switch (gif_res) {
-	case NSGIF_FRAME_DATA_ERROR:
-		fprintf(stderr, "NSGIF_FRAME_DATA_ERROR");
-		break;
-	case NSGIF_INSUFFICIENT_DATA:
-		fprintf(stderr, "NSGIF_INSUFFICIENT_DATA");
-		break;
-	case NSGIF_DATA_ERROR:
-		fprintf(stderr, "NSGIF_DATA_ERROR");
-		break;
-	case NSGIF_INSUFFICIENT_MEMORY:
-		fprintf(stderr, "NSGIF_INSUFFICIENT_MEMORY");
-		break;
-	default:
-		fprintf(stderr, "unknown code %i", gif_res);
-		break;
-	}
-	fprintf(stderr, "\n");
+	fprintf(stderr, "%s failed: %s\n",
+			context, nsgif_strerror(err));
 }
 
 static void decode(FILE* fh, const char *name, nsgif *gif, bool write_ppm)
 {
-	nsgif_result gif_res;
+	nsgif_error err;
 	uint32_t frame_prev = 0;
 	const nsgif_info_t *info;
 
@@ -128,10 +111,10 @@ static void decode(FILE* fh, const char *name, nsgif *gif, bool write_ppm)
 		uint32_t delay_cs;
 		nsgif_rect area;
 
-		gif_res = nsgif_frame_prepare(gif, &area,
+		err = nsgif_frame_prepare(gif, &area,
 				&delay_cs, &frame_new);
-		if (gif_res != NSGIF_OK) {
-			warning("nsgif_frame_prepare", gif_res);
+		if (err != NSGIF_OK) {
+			warning("nsgif_frame_prepare", err);
 			return;
 		}
 
@@ -142,9 +125,9 @@ static void decode(FILE* fh, const char *name, nsgif *gif, bool write_ppm)
 		}
 		frame_prev = frame_new;
 
-		gif_res = nsgif_frame_decode(gif, frame_new, &buffer);
-		if (gif_res != NSGIF_OK) {
-			warning("nsgif_decode_frame", gif_res);
+		err = nsgif_frame_decode(gif, frame_new, &buffer);
+		if (err != NSGIF_OK) {
+			warning("nsgif_decode_frame", err);
 			return;
 		}
 
@@ -175,8 +158,8 @@ int main(int argc, char *argv[])
 	nsgif *gif;
 	size_t size;
 	uint8_t *data;
+	nsgif_error err;
 	FILE *outf = stdout;
-	nsgif_result gif_res;
 	bool no_write = false;
 
 	if (argc < 2) {
@@ -203,8 +186,8 @@ int main(int argc, char *argv[])
 	}
 
 	/* create our gif animation */
-	gif_res = nsgif_create(&bitmap_callbacks, &gif);
-	if (gif_res != NSGIF_OK) {
+	err = nsgif_create(&bitmap_callbacks, &gif);
+	if (err != NSGIF_OK) {
 		return 1;
 	}
 
@@ -212,9 +195,9 @@ int main(int argc, char *argv[])
 	data = load_file(argv[1], &size);
 
 	/* Scan the raw data */
-	gif_res = nsgif_data_scan(gif, size, data);
-	if (gif_res != NSGIF_OK) {
-		warning("nsgif_data_scan", gif_res);
+	err = nsgif_data_scan(gif, size, data);
+	if (err != NSGIF_OK) {
+		warning("nsgif_data_scan", err);
 		nsgif_destroy(gif);
 		free(data);
 		return 1;

@@ -39,20 +39,61 @@ typedef struct nsgif_info {
 	uint16_t delay_min;
 } nsgif_info_t;
 
-/* Error return values */
+/**
+ * NSGIF return codes.
+ */
 typedef enum {
-	NSGIF_WORKING = 1,
-	NSGIF_OK = 0,
-	NSGIF_INSUFFICIENT_DATA = -1,
-	NSGIF_INSUFFICIENT_FRAME_DATA = NSGIF_INSUFFICIENT_DATA,
-	NSGIF_FRAME_DATA_ERROR = -2,
-	NSGIF_DATA_ERROR = -4,
-	NSGIF_INSUFFICIENT_MEMORY = -5,
-	NSGIF_FRAME_NO_DISPLAY = -6,
-	NSGIF_END_OF_FRAME = -7,
-	NSGIF_FRAME_INVALID = -8,
-	NSGIF_ANIMATION_COMPLETE = -9,
-} nsgif_result;
+	/**
+	 * Success.
+	 */
+	NSGIF_OK,
+
+	/**
+	 * Out of memory error.
+	 */
+	NSGIF_ERR_OOM,
+
+	/**
+	 * GIF source data is invalid, and no frames are recoverable.
+	 */
+	NSGIF_ERR_DATA,
+
+	/**
+	 * Frame number is not valid.
+	 */
+	NSGIF_ERR_BAD_FRAME,
+
+	/**
+	 * GIF source data contained an error in a frame.
+	 */
+	NSGIF_ERR_DATA_FRAME,
+
+	/**
+	 * Too many frames.
+	 */
+	NSGIF_ERR_FRAME_COUNT,
+
+	/**
+	 * GIF source data ended without one complete frame available.
+	 */
+	NSGIF_ERR_END_OF_DATA,
+
+	/**
+	 * GIF source data ended with incomplete frame.
+	 */
+	NSGIF_ERR_END_OF_FRAME,
+
+	/**
+	 * The current frame cannot be displayed.
+	 */
+	NSGIF_ERR_FRAME_DISPLAY,
+
+	/**
+	 * Indicates an animation is complete, and \ref nsgif_reset must be
+	 * called to restart the animation from the beginning.
+	 */
+	NSGIF_ERR_ANIMATION_END,
+} nsgif_error;
 
 /**
  * GIF rectangle structure.
@@ -136,13 +177,22 @@ typedef struct nsgif_bitmap_cb_vt {
 } nsgif_bitmap_cb_vt;
 
 /**
+ * Convert an error code to a string.
+ *
+ * \param[in]  err  The error code to convert.
+ * \return String representation of given error code.
+ */
+const char *nsgif_strerror(nsgif_error err);
+
+/**
  * Create the NSGIF object.
  *
  * \param[in]  bitmap_vt  Bitmap operation functions v-table.
  * \param[out] gif_out    Return NSGIF object on success.
+ *
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
-nsgif_result nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif **gif_out);
+nsgif_error nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif **gif_out);
 
 /**
  * Scan the source image data.
@@ -166,15 +216,9 @@ nsgif_result nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif **gif_out);
  * \param[in]  size    Number of bytes in data.
  * \param[in]  data    Raw source GIF data.
  *
- * \return Error return value.
- *         - NSGIF_FRAME_DATA_ERROR for GIF frame data error
- *         - NSGIF_INSUFFICIENT_DATA reached unexpected end of source data
- *         - NSGIF_INSUFFICIENT_MEMORY for memory error
- *         - NSGIF_DATA_ERROR for GIF error
- *         - NSGIF_OK for successful decoding
- *         - NSGIF_WORKING for successful decoding if more frames are expected
+ * \return NSGIF_OK on success, or appropriate error otherwise.
  */
-nsgif_result nsgif_data_scan(
+nsgif_error nsgif_data_scan(
 		nsgif *gif,
 		size_t size,
 		const uint8_t *data);
@@ -186,8 +230,10 @@ nsgif_result nsgif_data_scan(
  * \param[out] area       The area in pixels that must be redrawn.
  * \param[out] delay_cs   Time to wait after frame_new before next frame in cs.
  * \param[out] frame_new  The frame to decode.
+ *
+ * \return NSGIF_OK on success, or appropriate error otherwise.
  */
-nsgif_result nsgif_frame_prepare(
+nsgif_error nsgif_frame_prepare(
 		nsgif *gif,
 		nsgif_rect *area,
 		uint32_t *delay_cs,
@@ -200,14 +246,10 @@ nsgif_result nsgif_frame_prepare(
  * \param[in]  frame   The frame number to decode.
  * \param[out] bitmap  On success, returns pointer to the client-allocated,
  *                     nsgif-owned client bitmap structure.
- * \return Error return value.
- *         - NSGIF_FRAME_DATA_ERROR for GIF frame data error
- *         - NSGIF_DATA_ERROR for GIF error (invalid frame header)
- *         - NSGIF_INSUFFICIENT_DATA reached unexpected end of source data
- *         - NSGIF_INSUFFICIENT_MEMORY for insufficient memory to process
- *         - NSGIF_OK for successful decoding
+ *
+ * \return NSGIF_OK on success, or appropriate error otherwise.
  */
-nsgif_result nsgif_frame_decode(
+nsgif_error nsgif_frame_decode(
 		nsgif *gif,
 		uint32_t frame,
 		nsgif_bitmap_t **bitmap);
@@ -224,7 +266,7 @@ nsgif_result nsgif_frame_decode(
  *
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
-nsgif_result nsgif_reset(
+nsgif_error nsgif_reset(
 		nsgif *gif);
 
 /**
