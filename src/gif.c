@@ -1618,7 +1618,6 @@ nsgif_error nsgif_frame_prepare(
 	};
 	uint32_t delay = 0;
 	uint32_t frame = gif->frame;
-	uint32_t frame_next;
 
 	if (gif->frame != NSGIF_FRAME_INVALID &&
 	    gif->frame < gif->info.frame_count &&
@@ -1632,7 +1631,7 @@ nsgif_error nsgif_frame_prepare(
 		return NSGIF_ERR_ANIMATION_END;
 	}
 
-	ret = nsgif__next_displayable_frame(gif, &frame, NULL);
+	ret = nsgif__next_displayable_frame(gif, &frame, &delay);
 	if (ret != NSGIF_OK) {
 		return ret;
 	}
@@ -1641,17 +1640,22 @@ nsgif_error nsgif_frame_prepare(
 		gif->info.loop_count++;
 	}
 
-	frame_next = frame;
-	ret = nsgif__next_displayable_frame(gif, &frame_next, &delay);
-	if (ret != NSGIF_OK) {
-		return ret;
-	}
+	if (gif->info.frame_count == 1) {
+		delay = NSGIF_INFINITE;
 
-	if (frame_next < frame) {
-		if (nsgif__animation_complete(
-				gif->info.loop_count + 1,
-				gif->info.loop_max)) {
-			delay = NSGIF_INFINITE;
+	} else if (gif->info.loop_max != 0) {
+		uint32_t frame_next = frame;
+		ret = nsgif__next_displayable_frame(gif, &frame_next, NULL);
+		if (ret != NSGIF_OK) {
+			return ret;
+		}
+
+		if (frame_next < frame) {
+			if (nsgif__animation_complete(
+					gif->info.loop_count + 1,
+					gif->info.loop_max)) {
+				delay = NSGIF_INFINITE;
+			}
 		}
 	}
 
