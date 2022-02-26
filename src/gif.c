@@ -58,8 +58,6 @@ struct nsgif {
 	void *lzw_ctx;
 	/** callbacks for bitmap functions */
 	nsgif_bitmap_cb_vt bitmap;
-	/** pointer to GIF data */
-	const uint8_t *nsgif_data;
 	/** decoded frames */
 	nsgif_frame *frames;
 	/** current frame */
@@ -75,10 +73,13 @@ struct nsgif {
 	/** number of frames partially decoded */
 	uint32_t frame_count_partial;
 
+	/** pointer to GIF data */
+	const uint8_t *buf;
 	/** current index into GIF data */
-	uint32_t buffer_position;
+	uint32_t buf_pos;
 	/** total number of bytes of GIF data available */
-	uint32_t buffer_size;
+	uint32_t buf_len;
+
 	/** current number of frame holders */
 	uint32_t frame_holders;
 	/** background index */
@@ -445,8 +446,8 @@ static nsgif_error nsgif__decode_complex(
 
 	/* Initialise the LZW decoding */
 	res = lzw_decode_init(gif->lzw_ctx, data[0],
-			gif->nsgif_data, gif->buffer_size,
-			data + 1 - gif->nsgif_data);
+			gif->buf, gif->buf_len,
+			data + 1 - gif->buf);
 	if (res != LZW_OK) {
 		return nsgif__error_from_lzw(res);
 	}
@@ -535,8 +536,8 @@ static nsgif_error nsgif__decode_simple(
 	/* Initialise the LZW decoding */
 	res = lzw_decode_init_map(gif->lzw_ctx, data[0],
 			transparency_index, colour_table,
-			gif->nsgif_data, gif->buffer_size,
-			data + 1 - gif->nsgif_data);
+			gif->buf, gif->buf_len,
+			data + 1 - gif->buf);
 	if (res != LZW_OK) {
 		return nsgif__error_from_lzw(res);
 	}
@@ -825,7 +826,7 @@ static nsgif_error nsgif__parse_frame_extensions(
 		GIF_EXT_APPLICATION     = 0xff,
 	};
 	const uint8_t *nsgif_data = *pos;
-	const uint8_t *nsgif_end = gif->nsgif_data + gif->buffer_size;
+	const uint8_t *nsgif_end = gif->buf + gif->buf_len;
 	int nsgif_bytes = nsgif_end - nsgif_data;
 
 	/* Initialise the extensions */
@@ -937,7 +938,7 @@ static nsgif_error nsgif__parse_image_descriptor(
 		bool decode)
 {
 	const uint8_t *data = *pos;
-	size_t len = gif->nsgif_data + gif->buffer_size - data;
+	size_t len = gif->buf + gif->buf_len - data;
 	enum {
 		NSGIF_IMAGE_DESCRIPTOR_LEN = 10u,
 		NSGIF_IMAGE_SEPARATOR      = 0x2Cu,
@@ -1001,7 +1002,7 @@ static nsgif_error nsgif__colour_table_extract(
 		bool decode)
 {
 	const uint8_t *data = *pos;
-	size_t len = gif->nsgif_data + gif->buffer_size - data;
+	size_t len = gif->buf + gif->buf_len - data;
 
 	if (len < colour_table_entries * 3) {
 		return NSGIF_ERR_END_OF_DATA;
@@ -1087,7 +1088,7 @@ static nsgif_error nsgif__parse_image_data(
 		bool decode)
 {
 	const uint8_t *data = *pos;
-	size_t len = gif->nsgif_data + gif->buffer_size - data;
+	size_t len = gif->buf + gif->buf_len - data;
 	uint32_t frame_idx = frame - gif->frames;
 	uint8_t minimum_code_size;
 	nsgif_error ret;
@@ -1174,7 +1175,7 @@ static struct nsgif_frame *nsgif__get_frame(
 
 		frame->transparency = false;
 		frame->transparency_index = NSGIF_NO_TRANSPARENCY;
-		frame->frame_pointer = gif->buffer_position;
+		frame->frame_pointer = gif->buf_pos;
 		frame->redraw_required = false;
 		frame->disposal_method = 0;
 		frame->frame_delay = 100;
@@ -1208,10 +1209,10 @@ static nsgif_error nsgif__process_frame(
 		return NSGIF_ERR_OOM;
 	}
 
-	end = gif->nsgif_data + gif->buffer_size;
+	end = gif->buf + gif->buf_len;
 
 	if (decode) {
-		pos = gif->nsgif_data + frame->frame_pointer;
+		pos = gif->buf + frame->frame_pointer;
 
 		/* Ensure this frame is supposed to be decoded */
 		if (frame->display == false) {
@@ -1228,7 +1229,7 @@ static nsgif_error nsgif__process_frame(
 			return NSGIF_OK;
 		}
 	} else {
-		pos = (uint8_t *)(gif->nsgif_data + gif->buffer_position);
+		pos = (uint8_t *)(gif->buf + gif->buf_pos);
 
 		/* Check if we've finished */
 		if (pos < end && pos[0] == NSGIF_TRAILER) {
@@ -1265,7 +1266,7 @@ static nsgif_error nsgif__process_frame(
 
 cleanup:
 	if (!decode) {
-		gif->buffer_position = pos - gif->nsgif_data;
+		gif->buf_pos = pos - gif->buf;
 	}
 
 	return ret;
@@ -1337,7 +1338,7 @@ static nsgif_error nsgif__parse_header(
 		bool strict)
 {
 	const uint8_t *data = *pos;
-	size_t len = gif->nsgif_data + gif->buffer_size - data;
+	size_t len = gif->buf + gif->buf_len - data;
 
 	if (len < 6) {
 		return NSGIF_ERR_END_OF_DATA;
@@ -1384,7 +1385,7 @@ static nsgif_error nsgif__parse_logical_screen_descriptor(
 		const uint8_t **pos)
 {
 	const uint8_t *data = *pos;
-	size_t len = gif->nsgif_data + gif->buffer_size - data;
+	size_t len = gif->buf + gif->buf_len - data;
 
 	if (len < 7) {
 		return NSGIF_ERR_END_OF_DATA;
@@ -1413,14 +1414,14 @@ nsgif_error nsgif_data_scan(
 	uint32_t frames;
 
 	/* Initialize values */
-	gif->buffer_size = size;
-	gif->nsgif_data = data;
+	gif->buf_len = size;
+	gif->buf = data;
 
 	/* Get our current processing position */
-	nsgif_data = gif->nsgif_data + gif->buffer_position;
+	nsgif_data = gif->buf + gif->buf_pos;
 
 	/* See if we should initialise the GIF */
-	if (gif->buffer_position == 0) {
+	if (gif->buf_pos == 0) {
 		/* We want everything to be NULL before we start so we've no
 		 * chance of freeing bad pointers (paranoia)
 		 */
@@ -1445,7 +1446,7 @@ nsgif_error nsgif_data_scan(
 		}
 
 		/* Remember we've done this now */
-		gif->buffer_position = nsgif_data - gif->nsgif_data;
+		gif->buf_pos = nsgif_data - gif->buf;
 
 		/* Some broken GIFs report the size as the screen size they
 		 * were created in. As such, we detect for the common cases and
@@ -1473,7 +1474,7 @@ nsgif_error nsgif_data_scan(
 		 * termination block) Although generally useless, the GIF
 		 * specification does not expressly prohibit this
 		 */
-		if (gif->buffer_size == gif->buffer_position + 1) {
+		if (gif->buf_len == gif->buf_pos + 1) {
 			if (nsgif_data[0] == NSGIF_TRAILER) {
 				return NSGIF_OK;
 			}
@@ -1495,7 +1496,7 @@ nsgif_error nsgif_data_scan(
 				return ret;
 			}
 
-			gif->buffer_position = (nsgif_data - gif->nsgif_data);
+			gif->buf_pos = (nsgif_data - gif->buf);
 		} else {
 			/* Create a default colour table with the first two
 			 * colours as black and white
