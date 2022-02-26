@@ -1257,7 +1257,7 @@ cleanup:
 }
 
 /* exported function documented in nsgif.h */
-void nsgif_destroy(nsgif *gif)
+void nsgif_destroy(nsgif_t *gif)
 {
 	if (gif == NULL) {
 		return;
@@ -1283,9 +1283,9 @@ void nsgif_destroy(nsgif *gif)
 }
 
 /* exported function documented in nsgif.h */
-nsgif_error nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif **gif_out)
+nsgif_error nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif_t **gif_out)
 {
-	nsgif *gif;
+	nsgif_t *gif;
 
 	gif = calloc(1, sizeof(*gif));
 	if (gif == NULL) {
@@ -1389,7 +1389,7 @@ static nsgif_error nsgif__parse_logical_screen_descriptor(
 
 /* exported function documented in nsgif.h */
 nsgif_error nsgif_data_scan(
-		nsgif *gif,
+		nsgif_t *gif,
 		size_t size,
 		const uint8_t *data)
 {
@@ -1525,7 +1525,9 @@ nsgif_error nsgif_data_scan(
 	return ret;
 }
 
-static void nsgif__redraw_rect_extend(const nsgif_rect *frame, nsgif_rect *redraw)
+static void nsgif__redraw_rect_extend(
+		const nsgif_rect_t *frame,
+		nsgif_rect_t *redraw)
 {
 	if (redraw->x1 == 0 || redraw->y1 == 0) {
 		*redraw = *frame;
@@ -1546,7 +1548,7 @@ static void nsgif__redraw_rect_extend(const nsgif_rect *frame, nsgif_rect *redra
 }
 
 static uint32_t nsgif__frame_next(
-		nsgif *gif,
+		nsgif_t *gif,
 		bool partial,
 		uint32_t frame)
 {
@@ -1563,7 +1565,7 @@ static uint32_t nsgif__frame_next(
 }
 
 static nsgif_error nsgif__next_displayable_frame(
-		nsgif *gif,
+		nsgif_t *gif,
 		uint32_t *frame,
 		uint32_t *delay)
 {
@@ -1595,7 +1597,7 @@ static inline bool nsgif__animation_complete(int count, int max)
 }
 
 nsgif_error nsgif_reset(
-		nsgif *gif)
+		nsgif_t *gif)
 {
 	gif->info.loop_count = 0;
 	gif->frame = NSGIF_FRAME_INVALID;
@@ -1605,13 +1607,13 @@ nsgif_error nsgif_reset(
 
 /* exported function documented in nsgif.h */
 nsgif_error nsgif_frame_prepare(
-		nsgif *gif,
-		nsgif_rect *area,
+		nsgif_t *gif,
+		nsgif_rect_t *area,
 		uint32_t *delay_cs,
 		uint32_t *frame_new)
 {
 	nsgif_error ret;
-	nsgif_rect rect = {
+	nsgif_rect_t rect = {
 		.x1 = 0,
 		.y1 = 0,
 	};
@@ -1666,7 +1668,7 @@ nsgif_error nsgif_frame_prepare(
 
 /* exported function documented in nsgif.h */
 nsgif_error nsgif_frame_decode(
-		nsgif *gif,
+		nsgif_t *gif,
 		uint32_t frame,
 		nsgif_bitmap_t **bitmap)
 {
@@ -1702,14 +1704,14 @@ nsgif_error nsgif_frame_decode(
 }
 
 /* exported function documented in nsgif.h */
-const nsgif_info_t *nsgif_get_info(const nsgif *gif)
+const nsgif_info_t *nsgif_get_info(const nsgif_t *gif)
 {
 	return &gif->info;
 }
 
 /* exported function documented in nsgif.h */
 const nsgif_frame_info_t *nsgif_get_frame_info(
-		const nsgif *gif,
+		const nsgif_t *gif,
 		uint32_t frame)
 {
 	if (frame > gif->info.frame_count) {

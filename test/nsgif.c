@@ -156,7 +156,7 @@ static void print_gif_frame_info(const nsgif_frame_info_t *info)
 	fprintf(stdout, "      h: %"PRIu32"\n", info->rect.y1 - info->rect.y0);
 }
 
-static void decode(FILE* ppm, const char *name, nsgif *gif)
+static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 {
 	nsgif_error err;
 	uint32_t frame_prev = 0;
@@ -185,7 +185,7 @@ static void decode(FILE* ppm, const char *name, nsgif *gif)
 		const uint8_t *image;
 		uint32_t frame_new;
 		uint32_t delay_cs;
-		nsgif_rect area;
+		nsgif_rect_t area;
 
 		err = nsgif_frame_prepare(gif, &area,
 				&delay_cs, &frame_new);
@@ -244,8 +244,8 @@ int main(int argc, char *argv[])
 		.destroy    = bitmap_destroy,
 		.get_buffer = bitmap_get_buffer,
 	};
-	nsgif *gif;
 	size_t size;
+	nsgif_t *gif;
 	uint8_t *data;
 	nsgif_error err;
 	FILE *ppm = NULL;

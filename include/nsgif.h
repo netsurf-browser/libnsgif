@@ -23,7 +23,7 @@
 /** Representation of infinity. */
 #define NSGIF_INFINITE (UINT32_MAX)
 
-typedef struct nsgif nsgif;
+typedef struct nsgif nsgif_t;
 
 /**
  * GIF rectangle structure.
@@ -42,7 +42,7 @@ typedef struct nsgif_rect {
 	uint32_t x1;
 	/** y co-ordinate of redraw rectangle, bottom */
 	uint32_t y1;
-} nsgif_rect;
+} nsgif_rect_t;
 
 /**
  * NSGIF return codes.
@@ -178,14 +178,16 @@ const char *nsgif_strerror(nsgif_error err);
  *
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
-nsgif_error nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif **gif_out);
+nsgif_error nsgif_create(
+		const nsgif_bitmap_cb_vt *bitmap_vt,
+		nsgif_t **gif_out);
 
 /**
  * Free a NSGIF object.
  *
  * \param[in]  gif  The NSGIF to free.
  */
-void nsgif_destroy(nsgif *gif);
+void nsgif_destroy(nsgif_t *gif);
 
 /**
  * Scan the source image data.
@@ -212,7 +214,7 @@ void nsgif_destroy(nsgif *gif);
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
 nsgif_error nsgif_data_scan(
-		nsgif *gif,
+		nsgif_t *gif,
 		size_t size,
 		const uint8_t *data);
 
@@ -231,8 +233,8 @@ nsgif_error nsgif_data_scan(
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
 nsgif_error nsgif_frame_prepare(
-		nsgif *gif,
-		nsgif_rect *area,
+		nsgif_t *gif,
+		nsgif_rect_t *area,
 		uint32_t *delay_cs,
 		uint32_t *frame_new);
 
@@ -247,7 +249,7 @@ nsgif_error nsgif_frame_prepare(
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
 nsgif_error nsgif_frame_decode(
-		nsgif *gif,
+		nsgif_t *gif,
 		uint32_t frame,
 		nsgif_bitmap_t **bitmap);
 
@@ -264,7 +266,7 @@ nsgif_error nsgif_frame_decode(
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
 nsgif_error nsgif_reset(
-		nsgif *gif);
+		nsgif_t *gif);
 
 /**
  * Information about a GIF.
@@ -317,7 +319,7 @@ typedef struct nsgif_frame_info {
 	uint32_t delay;
 
 	/** Frame's redraw rectangle. */
-	nsgif_rect rect;
+	nsgif_rect_t rect;
 } nsgif_frame_info_t;
 
 /**
@@ -327,7 +329,7 @@ typedef struct nsgif_frame_info {
  *
  * \return The gif info, or NULL on error.
  */
-const nsgif_info_t *nsgif_get_info(const nsgif *gif);
+const nsgif_info_t *nsgif_get_info(const nsgif_t *gif);
 
 /**
  * Get information about a GIF from an NSGIF object.
@@ -338,7 +340,7 @@ const nsgif_info_t *nsgif_get_info(const nsgif *gif);
  * \return The gif frame info, or NULL on error.
  */
 const nsgif_frame_info_t *nsgif_get_frame_info(
-		const nsgif *gif,
+		const nsgif_t *gif,
 		uint32_t frame);
 
 #endif
