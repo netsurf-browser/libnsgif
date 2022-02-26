@@ -23,7 +23,7 @@ gifdecode()
 	OUTF=$(basename ${1} .gif)
 	CMPF=$(dirname  ${1})/${OUTF}.ppm
 	echo "GIF:${1}" >> ${TEST_LOG}
-	${TEST_PATH}/test_nsgif ${1} ${TEST_OUT}/${OUTF}.ppm 2>> ${TEST_LOG}
+	${TEST_PATH}/test_nsgif ${1} --ppm ${TEST_OUT}/${OUTF}.ppm 2>> ${TEST_LOG}
 	ECODE=$?
 
 	echo "Exit code:${ECODE}" >> ${TEST_LOG}
