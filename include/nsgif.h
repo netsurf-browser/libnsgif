@@ -35,8 +35,6 @@ typedef struct nsgif_info {
 	int loop_max;
 	/** number of animation loops so far */
 	int loop_count;
-
-	uint16_t delay_min;
 } nsgif_info_t;
 
 /**

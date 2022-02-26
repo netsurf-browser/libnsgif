@@ -69,7 +69,9 @@ struct nsgif {
 	/** currently decoded image; stored as bitmap from bitmap_create callback */
 	nsgif_bitmap_t *frame_image;
 
+	uint16_t delay_min;
 	uint16_t delay_default;
+
 	/** number of frames partially decoded */
 	uint32_t frame_count_partial;
 
@@ -735,7 +737,7 @@ static nsgif_error nsgif__parse_extension_graphic_control(
 	}
 
 	frame->frame_delay = data[3] | (data[4] << 8);
-	if (frame->frame_delay < gif->info.delay_min) {
+	if (frame->frame_delay < gif->delay_min) {
 		frame->frame_delay = gif->delay_default;
 	}
 
@@ -1309,7 +1311,7 @@ nsgif_error nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif **gif_out)
 	gif->decoded_frame = NSGIF_FRAME_INVALID;
 	gif->prev_index = NSGIF_FRAME_INVALID;
 
-	gif->info.delay_min = 2;
+	gif->delay_min = 2;
 	gif->delay_default = 10;
 
 	*gif_out = gif;
