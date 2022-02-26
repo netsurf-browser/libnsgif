@@ -1517,9 +1517,8 @@ nsgif_error nsgif_data_scan(
 		ret = nsgif__process_frame(gif, frames, false);
 	} while (gif->info.frame_count > frames);
 
-	if (ret == NSGIF_ERR_END_OF_DATA &&
-	    gif->info.frame_count > 0) {
-		ret = NSGIF_ERR_END_OF_FRAME;
+	if (ret == NSGIF_ERR_END_OF_DATA && gif->info.frame_count > 0) {
+		ret = NSGIF_OK;
 	}
 
 	return ret;
