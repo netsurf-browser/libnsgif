@@ -22,12 +22,7 @@
 
 /** GIF frame data */
 typedef struct nsgif_frame {
-	/** whether the frame should be displayed/animated */
-	bool display;
-	/** delay (in cs) before animating the frame */
-	uint32_t frame_delay;
-
-	/* Internal members are listed below */
+	struct nsgif_frame_info info;
 
 	/** offset (in bytes) to the GIF frame data */
 	uint32_t frame_pointer;
@@ -37,17 +32,14 @@ typedef struct nsgif_frame {
 	bool opaque;
 	/** whether a full image redraw is required */
 	bool redraw_required;
-	/** how the previous frame should be disposed; affects plotting */
-	uint8_t disposal_method;
+
 	/** whether we acknowledge transparency */
 	bool transparency;
 	/** the index designating a transparent pixel */
 	uint32_t transparency_index;
+
 	/* Frame flags */
 	uint32_t flags;
-
-	/** Frame's redraw rectangle. */
-	nsgif_rect redraw;
 } nsgif_frame;
 
 /** GIF animation data */
@@ -136,14 +128,6 @@ struct nsgif {
 
 /** No transparency */
 #define NSGIF_NO_TRANSPARENCY (0xFFFFFFFFu)
-
-enum nsgif_disposal {
-	NSGIF_DISPOSAL_UNSPECIFIED,
-	NSGIF_DISPOSAL_NONE,
-	NSGIF_DISPOSAL_RESTORE_BG,
-	NSGIF_DISPOSAL_RESTORE_PREV,
-	NSGIF_DISPOSAL_RESTORE_QUIRK, /**< Alias for NSGIF_DISPOSAL_RESTORE_PREV. */
-};
 
 /* GIF Flags */
 #define NSGIF_COLOUR_TABLE_MASK 0x80
@@ -578,10 +562,10 @@ static inline nsgif_error nsgif__decode(
 	};
 
 	nsgif_error ret;
-	uint32_t width  = frame->redraw.x1 - frame->redraw.x0;
-	uint32_t height = frame->redraw.y1 - frame->redraw.y0;
-	uint32_t offset_x = frame->redraw.x0;
-	uint32_t offset_y = frame->redraw.y0;
+	uint32_t width  = frame->info.rect.x1 - frame->info.rect.x0;
+	uint32_t height = frame->info.rect.y1 - frame->info.rect.y0;
+	uint32_t offset_x = frame->info.rect.x0;
+	uint32_t offset_y = frame->info.rect.y0;
 	uint32_t interlace = frame->flags & GIF_MASK_INTERLACE;
 	uint32_t transparency_index = frame->transparency_index;
 	uint32_t *restrict colour_table = gif->colour_table;
@@ -616,15 +600,15 @@ static void nsgif__restore_bg(
 		memset(bitmap, NSGIF_TRANSPARENT_COLOUR,
 				gif->info.width * gif->info.height * sizeof(*bitmap));
 	} else {
-		uint32_t width  = frame->redraw.x1 - frame->redraw.x0;
-		uint32_t height = frame->redraw.y1 - frame->redraw.y0;
-		uint32_t offset_x = frame->redraw.x0;
-		uint32_t offset_y = frame->redraw.y0;
+		uint32_t width  = frame->info.rect.x1 - frame->info.rect.x0;
+		uint32_t height = frame->info.rect.y1 - frame->info.rect.y0;
+		uint32_t offset_x = frame->info.rect.x0;
+		uint32_t offset_y = frame->info.rect.y0;
 
 		width -= gif__clip(offset_x, width, gif->info.width);
 		height -= gif__clip(offset_y, height, gif->info.height);
 
-		if (frame->display == false || width == 0) {
+		if (frame->info.display == false || width == 0) {
 			return;
 		}
 
@@ -671,10 +655,10 @@ static nsgif_error nsgif__update_bitmap(
 	} else {
 		struct nsgif_frame *prev = &gif->frames[frame_idx - 1];
 
-		if (prev->disposal_method == NSGIF_DISPOSAL_RESTORE_BG) {
+		if (prev->info.disposal == NSGIF_DISPOSAL_RESTORE_BG) {
 			nsgif__restore_bg(gif, prev, bitmap);
 
-		} else if (prev->disposal_method == NSGIF_DISPOSAL_RESTORE_PREV) {
+		} else if (prev->info.disposal == NSGIF_DISPOSAL_RESTORE_PREV) {
 			ret = nsgif__recover_frame(gif, bitmap);
 			if (ret != NSGIF_OK) {
 				nsgif__restore_bg(gif, prev, bitmap);
@@ -682,7 +666,7 @@ static nsgif_error nsgif__update_bitmap(
 		}
 	}
 
-	if (frame->disposal_method == NSGIF_DISPOSAL_RESTORE_PREV) {
+	if (frame->info.disposal == NSGIF_DISPOSAL_RESTORE_PREV) {
 		/* Store the previous frame for later restoration */
 		nsgif__record_frame(gif, bitmap);
 	}
@@ -737,9 +721,9 @@ static nsgif_error nsgif__parse_extension_graphic_control(
 		return NSGIF_ERR_END_OF_DATA;
 	}
 
-	frame->frame_delay = data[3] | (data[4] << 8);
-	if (frame->frame_delay < gif->delay_min) {
-		frame->frame_delay = gif->delay_default;
+	frame->info.delay = data[3] | (data[4] << 8);
+	if (frame->info.delay < gif->delay_min) {
+		frame->info.delay = gif->delay_default;
 	}
 
 	if (data[2] & GIF_MASK_TRANSPARENCY) {
@@ -747,22 +731,22 @@ static nsgif_error nsgif__parse_extension_graphic_control(
 		frame->transparency_index = data[5];
 	}
 
-	frame->disposal_method = ((data[2] & GIF_MASK_DISPOSAL) >> 2);
+	frame->info.disposal = ((data[2] & GIF_MASK_DISPOSAL) >> 2);
 	/* I have encountered documentation and GIFs in the
 	 * wild that use 0x04 to restore the previous frame,
 	 * rather than the officially documented 0x03.  I
 	 * believe some (older?)  software may even actually
 	 * export this way.  We handle this as a type of
 	 * "quirks" mode. */
-	if (frame->disposal_method == NSGIF_DISPOSAL_RESTORE_QUIRK) {
-		frame->disposal_method = NSGIF_DISPOSAL_RESTORE_PREV;
+	if (frame->info.disposal == NSGIF_DISPOSAL_RESTORE_QUIRK) {
+		frame->info.disposal = NSGIF_DISPOSAL_RESTORE_PREV;
 	}
 
 	/* if we are clearing the background then we need to
 	 * redraw enough to cover the previous frame too. */
 	frame->redraw_required =
-			frame->disposal_method == NSGIF_DISPOSAL_RESTORE_BG ||
-			frame->disposal_method == NSGIF_DISPOSAL_RESTORE_PREV;
+			frame->info.disposal == NSGIF_DISPOSAL_RESTORE_BG ||
+			frame->info.disposal == NSGIF_DISPOSAL_RESTORE_PREV;
 
 	return NSGIF_OK;
 }
@@ -964,10 +948,10 @@ static nsgif_error nsgif__parse_image_descriptor(
 		h = data[7] | (data[8] << 8);
 		frame->flags = data[9];
 
-		frame->redraw.x0 = x;
-		frame->redraw.y0 = y;
-		frame->redraw.x1 = x + w;
-		frame->redraw.y1 = y + h;
+		frame->info.rect.x0 = x;
+		frame->info.rect.y0 = y;
+		frame->info.rect.x1 = x + w;
+		frame->info.rect.y1 = y + h;
 
 		/* Allow first frame to grow image dimensions. */
 		if (gif->info.frame_count == 0) {
@@ -1143,7 +1127,7 @@ static nsgif_error nsgif__parse_image_data(
 		*pos = data;
 
 		gif->info.frame_count = frame_idx + 1;
-		gif->frames[frame_idx].display = true;
+		gif->frames[frame_idx].info.display = true;
 
 		return NSGIF_OK;
 	}
@@ -1177,9 +1161,9 @@ static struct nsgif_frame *nsgif__get_frame(
 		frame->transparency_index = NSGIF_NO_TRANSPARENCY;
 		frame->frame_pointer = gif->buf_pos;
 		frame->redraw_required = false;
-		frame->disposal_method = 0;
-		frame->frame_delay = 100;
-		frame->display = false;
+		frame->info.display = false;
+		frame->info.disposal = 0;
+		frame->info.delay = 10;
 		frame->decoded = false;
 	}
 
@@ -1215,7 +1199,7 @@ static nsgif_error nsgif__process_frame(
 		pos = gif->buf + frame->frame_pointer;
 
 		/* Ensure this frame is supposed to be decoded */
-		if (frame->display == false) {
+		if (frame->info.display == false) {
 			return NSGIF_OK;
 		}
 
@@ -1592,10 +1576,10 @@ static nsgif_error nsgif__next_displayable_frame(
 		}
 
 		if (delay != NULL) {
-			*delay += gif->frames[next].frame_delay;
+			*delay += gif->frames[next].info.delay;
 		}
 
-	} while (gif->frames[next].display == false);
+	} while (gif->frames[next].info.display == false);
 
 	*frame = next;
 	return NSGIF_OK;
@@ -1637,8 +1621,8 @@ nsgif_error nsgif_frame_prepare(
 
 	if (gif->frame != NSGIF_FRAME_INVALID &&
 	    gif->frame < gif->info.frame_count &&
-	    gif->frames[gif->frame].display) {
-		rect = gif->frames[gif->frame].redraw;
+	    gif->frames[gif->frame].info.display) {
+		rect = gif->frames[gif->frame].info.rect;
 	}
 
 	if (nsgif__animation_complete(
@@ -1671,7 +1655,7 @@ nsgif_error nsgif_frame_prepare(
 	}
 
 	gif->frame = frame;
-	nsgif__redraw_rect_extend(&gif->frames[frame].redraw, &rect);
+	nsgif__redraw_rect_extend(&gif->frames[frame].info.rect, &rect);
 
 	*frame_new = gif->frame;
 	*delay_cs = delay;
@@ -1717,9 +1701,22 @@ nsgif_error nsgif_frame_decode(
 	return ret;
 }
 
+/* exported function documented in nsgif.h */
 const nsgif_info_t *nsgif_get_info(const nsgif *gif)
 {
 	return &gif->info;
+}
+
+/* exported function documented in nsgif.h */
+const nsgif_frame_info_t *nsgif_get_frame_info(
+		const nsgif *gif,
+		uint32_t frame)
+{
+	if (frame > gif->info.frame_count) {
+		return NULL;
+	}
+
+	return &gif->frames[frame].info;
 }
 
 /* exported function documented in nsgif.h */
@@ -1743,4 +1740,22 @@ const char *nsgif_strerror(nsgif_error err)
 	}
 
 	return str[err];
+}
+
+/* exported function documented in nsgif.h */
+const char *nsgif_str_disposal(enum nsgif_disposal disposal)
+{
+	static const char *const str[] = {
+		[NSGIF_DISPOSAL_UNSPECIFIED]   = "Unspecified",
+		[NSGIF_DISPOSAL_NONE]          = "None",
+		[NSGIF_DISPOSAL_RESTORE_BG]    = "Restore background",
+		[NSGIF_DISPOSAL_RESTORE_PREV]  = "Restore previous",
+		[NSGIF_DISPOSAL_RESTORE_QUIRK] = "Restore quirk",
+	};
+
+	if (disposal >= NSGIF_ARRAY_LEN(str) || str[disposal] == NULL) {
+		return "Unspecified";
+	}
+
+	return str[disposal];
 }

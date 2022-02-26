@@ -20,22 +20,29 @@
 #include <stdbool.h>
 #include <inttypes.h>
 
+/** Representation of infinity. */
 #define NSGIF_INFINITE (UINT32_MAX)
 
 typedef struct nsgif nsgif;
 
-typedef struct nsgif_info {
-	/** width of GIF (may increase during decoding) */
-	uint32_t width;
-	/** height of GIF (may increase during decoding) */
-	uint32_t height;
-	/** number of frames decoded */
-	uint32_t frame_count;
-	/** number of times to loop animation */
-	int loop_max;
-	/** number of animation loops so far */
-	int loop_count;
-} nsgif_info_t;
+/**
+ * GIF rectangle structure.
+ *
+ * * Top left coordinate is `(x0, y0)`.
+ * * Width is `x1 - x0`.
+ * * Height is `y1 - y0`.
+ * * Units are pixels.
+ */
+typedef struct nsgif_rect {
+	/** x co-ordinate of redraw rectangle, left */
+	uint32_t x0;
+	/** y co-ordinate of redraw rectangle, top */
+	uint32_t y0;
+	/** x co-ordinate of redraw rectangle, right */
+	uint32_t x1;
+	/** y co-ordinate of redraw rectangle, bottom */
+	uint32_t y1;
+} nsgif_rect;
 
 /**
  * NSGIF return codes.
@@ -92,25 +99,6 @@ typedef enum {
 	 */
 	NSGIF_ERR_ANIMATION_END,
 } nsgif_error;
-
-/**
- * GIF rectangle structure.
- *
- * * Top left coordinate is `(x0, y0)`.
- * * Width is `x1 - x0`.
- * * Height is `y1 - y0`.
- * * Units are pixels.
- */
-typedef struct nsgif_rect {
-	/** x co-ordinate of redraw rectangle, left */
-	uint32_t x0;
-	/** y co-ordinate of redraw rectangle, top */
-	uint32_t y0;
-	/** x co-ordinate of redraw rectangle, right */
-	uint32_t x1;
-	/** y co-ordinate of redraw rectangle, bottom */
-	uint32_t y1;
-} nsgif_rect;
 
 /**
  * Client bitmap type.
@@ -193,6 +181,13 @@ const char *nsgif_strerror(nsgif_error err);
 nsgif_error nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif **gif_out);
 
 /**
+ * Free a NSGIF object.
+ *
+ * \param[in]  gif  The NSGIF to free.
+ */
+void nsgif_destroy(nsgif *gif);
+
+/**
  * Scan the source image data.
  *
  * This is used to feed the source data into LibNSGIF. This must be called
@@ -223,6 +218,10 @@ nsgif_error nsgif_data_scan(
 
 /**
  * Prepare to show a frame.
+ *
+ * If this is the last frame of an animation with a finite loop count, the
+ * returned `delay_cs` will be \ref NSGIF_INFINITE, indicating that the frame
+ * should be shown forever.
  *
  * \param[in]  gif        The NSGIF object.
  * \param[out] area       The area in pixels that must be redrawn.
@@ -268,6 +267,60 @@ nsgif_error nsgif_reset(
 		nsgif *gif);
 
 /**
+ * Information about a GIF.
+ */
+typedef struct nsgif_info {
+	/** width of GIF (may increase during decoding) */
+	uint32_t width;
+	/** height of GIF (may increase during decoding) */
+	uint32_t height;
+	/** number of frames decoded */
+	uint32_t frame_count;
+	/** number of times to loop animation */
+	int loop_max;
+	/** number of animation loops so far */
+	int loop_count;
+} nsgif_info_t;
+
+/**
+ * Frame disposal method.
+ *
+ * Clients do not need to know about this, it is provided purely for dumping
+ * raw information about GIF frames.
+ */
+enum nsgif_disposal {
+	NSGIF_DISPOSAL_UNSPECIFIED,   /**< No disposal method specified. */
+	NSGIF_DISPOSAL_NONE,          /**< Frame remains. */
+	NSGIF_DISPOSAL_RESTORE_BG,    /**< Clear frame to background colour. */
+	NSGIF_DISPOSAL_RESTORE_PREV,  /**< Restore previous frame. */
+	NSGIF_DISPOSAL_RESTORE_QUIRK, /**< Alias for NSGIF_DISPOSAL_RESTORE_PREV. */
+};
+
+/**
+ * Convert a disposal method to a string.
+ *
+ * \param[in]  disposal  The disposal method to convert.
+ * \return String representation of given disposal method.
+ */
+const char *nsgif_str_disposal(enum nsgif_disposal disposal);
+
+/**
+ * Information about a GIF frame.
+ */
+typedef struct nsgif_frame_info {
+	/** whether the frame should be displayed/animated */
+	bool display;
+
+	/** Disposal method for previous frame; affects plotting */
+	uint8_t disposal;
+	/** delay (in cs) before animating the frame */
+	uint32_t delay;
+
+	/** Frame's redraw rectangle. */
+	nsgif_rect rect;
+} nsgif_frame_info_t;
+
+/**
  * Get information about a GIF from an NSGIF object.
  *
  * \param[in]  gif  The NSGIF object to get info for.
@@ -277,10 +330,15 @@ nsgif_error nsgif_reset(
 const nsgif_info_t *nsgif_get_info(const nsgif *gif);
 
 /**
- * Free a NSGIF object.
+ * Get information about a GIF from an NSGIF object.
  *
- * \param[in]  gif  The NSGIF to free.
+ * \param[in]  gif    The NSGIF object to get frame info for.
+ * \param[in]  frame  The frame number to get info for.
+ *
+ * \return The gif frame info, or NULL on error.
  */
-void nsgif_destroy(nsgif *gif);
+const nsgif_frame_info_t *nsgif_get_frame_info(
+		const nsgif *gif,
+		uint32_t frame);
 
 #endif
