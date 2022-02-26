@@ -1633,7 +1633,6 @@ nsgif_error nsgif_frame_prepare(
 	uint32_t frame_next;
 
 	if (gif->frame != NSGIF_FRAME_INVALID &&
-	    gif->frame != 0 &&
 	    gif->frame < gif->info.frame_count &&
 	    gif->frames[gif->frame].display) {
 		rect = gif->frames[gif->frame].redraw;
