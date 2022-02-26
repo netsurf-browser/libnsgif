@@ -1,3 +1,3 @@
-DIR_TEST_ITEMS := decode_gif:decode_gif.c
+DIR_TEST_ITEMS := nsgif:nsgif.c
 
 include $(NSBUILD)/Makefile.subdir
