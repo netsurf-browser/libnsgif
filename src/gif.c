@@ -203,7 +203,7 @@ static inline uint32_t* nsgif__bitmap_get(
 
 	/* Get the frame data */
 	assert(gif->bitmap.get_buffer);
-	return (uint32_t *)gif->bitmap.get_buffer(gif->frame_image);
+	return (void *)gif->bitmap.get_buffer(gif->frame_image);
 }
 
 /**
