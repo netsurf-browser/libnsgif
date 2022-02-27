@@ -54,6 +54,11 @@ function has returned `NSGIF_OK` it has enough data to display at least one
 frame. The early frames can be decoded before the later frames are scanned.
 Frames have to be scanned before they can be decoded.
 
+> **Note**: The client must not free the data until after calling
+> `nsgif_destroy()`. You can move the data, e.g. if you realloc to a bigger
+> buffer. Just be sure to call `nsgif_data_scan()` again with the new pointer
+> before making any other calls against that nsgif object.
+
 To decode the frames, you can call `nsgif_get_info()` to get the frame_count,
 and then call `nsgif_frame_decode()` for each frame, and manage the animation,
 and non-displayable frames yourself, or you can use the helper function,
