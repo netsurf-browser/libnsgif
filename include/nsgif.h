@@ -105,6 +105,10 @@ typedef enum {
  *
  * These are client-created and destroyed, via the \ref bitmap callbacks,
  * but they are owned by a \ref nsgif.
+ *
+ * The pixel buffer is is 32bpp, treated as individual bytes in the component
+ * order RR GG BB AA. For example, a 1x1 image with a single orange pixel would
+ * be encoded as the following sequence of bytes: 0xff, 0x88, 0x00, 0x00.
  */
 typedef void nsgif_bitmap_t;
 
@@ -130,6 +134,7 @@ typedef struct nsgif_bitmap_cb_vt {
 	 * Get pointer to pixel buffer in a bitmap.
 	 *
 	 * The pixel buffer must be `width * height * sizeof(uint32_t)`.
+	 * Note that the returned pointer to uint8_t must be 4-byte aligned.
 	 *
 	 * \param[in]  bitmap  The bitmap.
 	 * \return pointer to bitmap's pixel buffer.
