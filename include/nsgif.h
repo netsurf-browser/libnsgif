@@ -23,10 +23,13 @@
 /** Representation of infinity. */
 #define NSGIF_INFINITE (UINT32_MAX)
 
+/**
+ * Opaque type used by LibNSGIF to represent a GIF object in memory.
+ */
 typedef struct nsgif nsgif_t;
 
 /**
- * GIF rectangle structure.
+ * LibNSGIF rectangle structure.
  *
  * * Top left coordinate is `(x0, y0)`.
  * * Width is `x1 - x0`.
@@ -45,7 +48,7 @@ typedef struct nsgif_rect {
 } nsgif_rect_t;
 
 /**
- * NSGIF return codes.
+ * LibNSGIF return codes.
  */
 typedef enum {
 	/**
@@ -104,7 +107,7 @@ typedef enum {
  * Client bitmap type.
  *
  * These are client-created and destroyed, via the \ref bitmap callbacks,
- * but they are owned by a \ref nsgif.
+ * but they are owned by a \ref nsgif_t.
  *
  * The pixel buffer is is 32bpp, treated as individual bytes in the component
  * order RR GG BB AA. For example, a 1x1 image with a single orange pixel would
@@ -179,7 +182,7 @@ const char *nsgif_strerror(nsgif_error err);
  * Create the NSGIF object.
  *
  * \param[in]  bitmap_vt  Bitmap operation functions v-table.
- * \param[out] gif_out    Return NSGIF object on success.
+ * \param[out] gif_out    Return \ref nsgif_t object on success.
  *
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
@@ -205,14 +208,14 @@ void nsgif_destroy(nsgif_t *gif);
  * already given to \ref nsgif_data_scan must be provided each time.
  *
  * For example, if you call \ref nsgif_data_scan with 25 bytes of data, and then
- * fetch another 10 bytes, you would need to call \ref nsgif_data with a size of
- * 35 bytes, and the whole 35 bytes must be contiguous memory. It is safe to
- * `realloc` the source buffer between calls to \ref nsgif_data_scan. (The
- * actual data pointer is allowed to be different.)
+ * fetch another 10 bytes, you would need to call \ref nsgif_data_scan with a
+ * size of 35 bytes, and the whole 35 bytes must be contiguous memory. It is
+ * safe to `realloc` the source buffer between calls to \ref nsgif_data_scan.
+ * (The actual data pointer is allowed to be different.)
  *
  * If an error occurs, all previously scanned frames are retained.
  *
- * \param[in]  gif     The NSGIF object.
+ * \param[in]  gif     The \ref nsgif_t object.
  * \param[in]  size    Number of bytes in data.
  * \param[in]  data    Raw source GIF data.
  *
@@ -230,7 +233,7 @@ nsgif_error nsgif_data_scan(
  * returned `delay_cs` will be \ref NSGIF_INFINITE, indicating that the frame
  * should be shown forever.
  *
- * \param[in]  gif        The NSGIF object.
+ * \param[in]  gif        The \ref nsgif_t object.
  * \param[out] area       The area in pixels that must be redrawn.
  * \param[out] delay_cs   Time to wait after frame_new before next frame in cs.
  * \param[out] frame_new  The frame to decode.
@@ -246,7 +249,7 @@ nsgif_error nsgif_frame_prepare(
 /**
  * Decodes a GIF frame.
  *
- * \param[in]  gif     The nsgif object.
+ * \param[in]  gif     The \ref nsgif_t object.
  * \param[in]  frame   The frame number to decode.
  * \param[out] bitmap  On success, returns pointer to the client-allocated,
  *                     nsgif-owned client bitmap structure.
@@ -264,9 +267,9 @@ nsgif_error nsgif_frame_decode(
  * Some animations are only meant to loop N times, and then show the
  * final frame forever. This function resets the loop and frame counters,
  * so that the animation can be replayed without the overhead of recreating
- * the NSGIF object and rescanning the raw data.
+ * the \ref nsgif_t object and rescanning the raw data.
  *
- * \param[in]  gif  A NSGIF object.
+ * \param[in]  gif  A \ref nsgif_t object.
  *
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
@@ -328,18 +331,18 @@ typedef struct nsgif_frame_info {
 } nsgif_frame_info_t;
 
 /**
- * Get information about a GIF from an NSGIF object.
+ * Get information about a GIF from an \ref nsgif_t object.
  *
- * \param[in]  gif  The NSGIF object to get info for.
+ * \param[in]  gif  The \ref nsgif_t object to get info for.
  *
  * \return The gif info, or NULL on error.
  */
 const nsgif_info_t *nsgif_get_info(const nsgif_t *gif);
 
 /**
- * Get information about a GIF from an NSGIF object.
+ * Get information about a GIF from an \ref nsgif_t object.
  *
- * \param[in]  gif    The NSGIF object to get frame info for.
+ * \param[in]  gif    The \ref nsgif_t object to get frame info for.
  * \param[in]  frame  The frame number to get info for.
  *
  * \return The gif frame info, or NULL on error.
