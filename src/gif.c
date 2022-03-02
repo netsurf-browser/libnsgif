@@ -709,15 +709,13 @@ static nsgif_error nsgif__update_bitmap(
 /**
  * Parse the graphic control extension
  *
- * \param[in] gif    The gif object we're decoding.
- * \param[in] frame  The gif object we're decoding.
+ * \param[in] frame  The gif frame object we're decoding.
  * \param[in] data   The data to decode.
  * \param[in] len    Byte length of data.
  * \return NSGIF_ERR_END_OF_DATA if more data is needed,
  *         NSGIF_OK for success.
  */
 static nsgif_error nsgif__parse_extension_graphic_control(
-		const struct nsgif *gif,
 		struct nsgif_frame *frame,
 		const uint8_t *data,
 		size_t len)
@@ -744,9 +742,6 @@ static nsgif_error nsgif__parse_extension_graphic_control(
 	}
 
 	frame->info.delay = data[3] | (data[4] << 8);
-	if (frame->info.delay < gif->delay_min) {
-		frame->info.delay = gif->delay_default;
-	}
 
 	if (data[2] & GIF_MASK_TRANSPARENCY) {
 		frame->info.transparency = true;
@@ -852,7 +847,7 @@ static nsgif_error nsgif__parse_frame_extensions(
 		case GIF_EXT_GRAPHIC_CONTROL:
 			if (decode) {
 				ret = nsgif__parse_extension_graphic_control(
-						gif, frame,
+						frame,
 						nsgif_data,
 						nsgif_bytes);
 				if (ret != NSGIF_OK) {
@@ -1687,6 +1682,10 @@ nsgif_error nsgif_frame_prepare(
 
 	gif->frame = frame;
 	nsgif__redraw_rect_extend(&gif->frames[frame].info.rect, &rect);
+
+	if (delay < gif->delay_min) {
+		delay = gif->delay_default;
+	}
 
 	*frame_new = gif->frame;
 	*delay_cs = delay;
