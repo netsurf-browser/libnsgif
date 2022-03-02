@@ -322,6 +322,8 @@ const char *nsgif_str_disposal(enum nsgif_disposal disposal);
 typedef struct nsgif_frame_info {
 	/** whether the frame should be displayed/animated */
 	bool display;
+	/** whether the frame may have transparency */
+	bool transparency;
 
 	/** Disposal method for previous frame; affects plotting */
 	uint8_t disposal;

@@ -33,8 +33,6 @@ typedef struct nsgif_frame {
 	/** whether a full image redraw is required */
 	bool redraw_required;
 
-	/** whether we acknowledge transparency */
-	bool transparency;
 	/** the index designating a transparent pixel */
 	uint32_t transparency_index;
 
@@ -634,7 +632,7 @@ static void nsgif__restore_bg(
 			return;
 		}
 
-		if (frame->transparency) {
+		if (frame->info.transparency) {
 			for (uint32_t y = 0; y < height; y++) {
 				uint32_t *scanline = bitmap + offset_x +
 						(offset_y + y) * gif->info.width;
@@ -751,7 +749,7 @@ static nsgif_error nsgif__parse_extension_graphic_control(
 	}
 
 	if (data[2] & GIF_MASK_TRANSPARENCY) {
-		frame->transparency = true;
+		frame->info.transparency = true;
 		frame->transparency_index = data[5];
 	}
 
@@ -1181,9 +1179,9 @@ static struct nsgif_frame *nsgif__get_frame(
 
 		frame = &gif->frames[frame_idx];
 
-		frame->transparency = false;
 		frame->transparency_index = NSGIF_NO_TRANSPARENCY;
 		frame->frame_pointer = gif->buf_pos;
+		frame->info.transparency = false;
 		frame->redraw_required = false;
 		frame->info.display = false;
 		frame->info.disposal = 0;
