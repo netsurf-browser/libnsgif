@@ -289,6 +289,10 @@ int main(int argc, char *argv[])
 		return EXIT_FAILURE;
 	}
 
+	if (nsgif_options.loops == 0) {
+		nsgif_options.loops = 1;
+	}
+
 	for (uint64_t i = 0; i < nsgif_options.loops; i++) {
 		decode((i == 0) ? ppm : NULL, nsgif_options.file, gif);
 	}
