@@ -152,6 +152,7 @@ static void print_gif_frame_info(const nsgif_frame_info_t *info)
 	const char *disposal = nsgif_str_disposal(info->disposal);
 
 	fprintf(stdout, "  - disposal-method: %s\n", disposal);
+	fprintf(stdout, "    transparency: %s\n", info->transparency ? "yes" : "no");
 	fprintf(stdout, "    display: %s\n", info->display ? "yes" : "no");
 	fprintf(stdout, "    delay: %"PRIu32"\n", info->delay);
 	fprintf(stdout, "    rect:\n");
