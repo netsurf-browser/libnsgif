@@ -140,6 +140,10 @@ static void print_gif_info(const nsgif_info_t *info)
 	fprintf(stdout, "  height: %"PRIu32"\n", info->height);
 	fprintf(stdout, "  max-loops: %"PRIu32"\n", info->loop_max);
 	fprintf(stdout, "  frame-count: %"PRIu32"\n", info->frame_count);
+	fprintf(stdout, "  background:\n");
+	fprintf(stdout, "    red: 0x%"PRIx8"\n", info->background[0]);
+	fprintf(stdout, "    green: 0x%"PRIx8"\n", info->background[1]);
+	fprintf(stdout, "    blue: 0x%"PRIx8"\n", info->background[2]);
 	fprintf(stdout, "  frames:\n");
 }
 
