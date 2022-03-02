@@ -290,6 +290,8 @@ typedef struct nsgif_info {
 	int loop_max;
 	/** number of animation loops so far */
 	int loop_count;
+	/** background colour in same pixel format as \ref nsgif_bitmap_t. */
+	uint8_t background[4];
 } nsgif_info_t;
 
 /**

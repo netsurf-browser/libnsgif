@@ -76,8 +76,6 @@ struct nsgif {
 	uint32_t frame_holders;
 	/** background index */
 	uint32_t bg_index;
-	/** background colour */
-	uint32_t bg_colour;
 	/** image aspect ratio (ignored) */
 	uint32_t aspect_ratio;
 	/** size of colour table (in entries) */
@@ -585,6 +583,30 @@ static inline nsgif_error nsgif__decode(
 }
 
 /**
+ * Helper to assign a pixel representation from a gif background colour array.
+ *
+ * \param[in]  bg  The background colour to read from.
+ * \param[out] px  The pixel colour to write.
+ */
+static inline void nsgif__gif_bg_to_px(
+		const uint8_t bg[4], uint32_t *px)
+{
+	*px = *(uint32_t *)bg;
+}
+
+/**
+ * Helper to assign a gif background colour array from a pixel representation.
+ *
+ * \param[in]  px  The pixel colour to read from.
+ * \param[out] bg  The background colour to write.
+ */
+static inline void nsgif__gif_px_to_bg(
+		const uint32_t *px, uint8_t bg[4])
+{
+	*(uint32_t *)bg = *px;
+}
+
+/**
  * Restore a GIF to the background colour.
  *
  * \param[in] gif     The gif object we're decoding.
@@ -624,7 +646,9 @@ static void nsgif__restore_bg(
 				uint32_t *scanline = bitmap + offset_x +
 						(offset_y + y) * gif->info.width;
 				for (uint32_t x = 0; x < width; x++) {
-					scanline[x] = gif->bg_colour;
+					nsgif__gif_bg_to_px(
+							gif->info.background,
+							&scanline[x]);
 				}
 			}
 		}
@@ -1497,9 +1521,13 @@ nsgif_error nsgif_data_scan(
 		if (gif->global_colours &&
 		    gif->bg_index < gif->colour_table_size) {
 			size_t bg_idx = gif->bg_index;
-			gif->bg_colour = gif->global_colour_table[bg_idx];
+			nsgif__gif_px_to_bg(
+					&gif->global_colour_table[bg_idx],
+					gif->info.background);
 		} else {
-			gif->bg_colour = gif->global_colour_table[0];
+			nsgif__gif_px_to_bg(
+					&gif->global_colour_table[0],
+					gif->info.background);
 		}
 	}
 
