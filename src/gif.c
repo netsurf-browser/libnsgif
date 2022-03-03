@@ -625,12 +625,14 @@ static void nsgif__restore_bg(
 		uint32_t offset_x = frame->info.rect.x0;
 		uint32_t offset_y = frame->info.rect.y0;
 
-		width -= gif__clip(offset_x, width, gif->info.width);
-		height -= gif__clip(offset_y, height, gif->info.height);
-
-		if (frame->info.display == false || width == 0) {
+		if (frame->info.display == false ||
+		    frame->info.rect.x0 >= gif->info.width ||
+		    frame->info.rect.y0 >= gif->info.height) {
 			return;
 		}
+
+		width -= gif__clip(offset_x, width, gif->info.width);
+		height -= gif__clip(offset_y, height, gif->info.height);
 
 		if (frame->info.transparency) {
 			for (uint32_t y = 0; y < height; y++) {
