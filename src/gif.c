@@ -1703,7 +1703,7 @@ nsgif_error nsgif_frame_decode(
 	uint32_t start_frame;
 	nsgif_error ret = NSGIF_OK;
 
-	if (frame > gif->info.frame_count) {
+	if (frame >= gif->info.frame_count) {
 		return NSGIF_ERR_BAD_FRAME;
 	}
 
@@ -1742,7 +1742,7 @@ const nsgif_frame_info_t *nsgif_get_frame_info(
 		const nsgif_t *gif,
 		uint32_t frame)
 {
-	if (frame > gif->info.frame_count) {
+	if (frame >= gif->info.frame_count) {
 		return NULL;
 	}
 
