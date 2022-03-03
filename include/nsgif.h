@@ -82,14 +82,9 @@ typedef enum {
 	NSGIF_ERR_FRAME_COUNT,
 
 	/**
-	 * GIF source data ended without one complete frame available.
+	 * Unexpected end of GIF source data.
 	 */
 	NSGIF_ERR_END_OF_DATA,
-
-	/**
-	 * GIF source data ended with incomplete frame.
-	 */
-	NSGIF_ERR_END_OF_FRAME,
 
 	/**
 	 * The current frame cannot be displayed.

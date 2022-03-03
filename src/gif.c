@@ -1761,8 +1761,7 @@ const char *nsgif_strerror(nsgif_error err)
 		[NSGIF_ERR_BAD_FRAME]     = "Requested frame does not exist",
 		[NSGIF_ERR_DATA_FRAME]    = "Invalid frame data",
 		[NSGIF_ERR_FRAME_COUNT]   = "Excessive number of frames",
-		[NSGIF_ERR_END_OF_DATA]   = "Insufficient data for first frame",
-		[NSGIF_ERR_END_OF_FRAME]  = "End of data during frame",
+		[NSGIF_ERR_END_OF_DATA]   = "Unexpected end of GIF source data",
 		[NSGIF_ERR_FRAME_DISPLAY] = "Frame can't be displayed",
 		[NSGIF_ERR_ANIMATION_END] = "Animation complete",
 	};
