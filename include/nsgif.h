@@ -210,6 +210,9 @@ void nsgif_destroy(nsgif_t *gif);
  *
  * If an error occurs, all previously scanned frames are retained.
  *
+ * Note that an error returned from this function is purely informational.
+ * So long as at least one frame is available, you can display frames.
+ *
  * \param[in]  gif     The \ref nsgif_t object.
  * \param[in]  size    Number of bytes in data.
  * \param[in]  data    Raw source GIF data.
