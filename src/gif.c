@@ -40,6 +40,14 @@ typedef struct nsgif_frame {
 	uint32_t flags;
 } nsgif_frame;
 
+/** Pixel format: colour component order. */
+struct nsgif_colour_layout {
+	uint8_t r; /**< Byte offset within pixel to red component. */
+	uint8_t g; /**< Byte offset within pixel to green component. */
+	uint8_t b; /**< Byte offset within pixel to blue component. */
+	uint8_t a; /**< Byte offset within pixel to alpha component. */
+};
+
 /** GIF animation data */
 struct nsgif {
 	struct nsgif_info info;
@@ -83,6 +91,8 @@ struct nsgif {
 	bool global_colours;
 	/** current colour table */
 	uint32_t *colour_table;
+	/** Client's colour component order. */
+	struct nsgif_colour_layout colour_layout;
 	/** global colour table */
 	uint32_t global_colour_table[NSGIF_MAX_COLOURS];
 	/** local colour table */
@@ -1343,8 +1353,90 @@ void nsgif_destroy(nsgif_t *gif)
 	free(gif);
 }
 
+/**
+ * Check whether the host is little endian.
+ *
+ * Checks whether least significant bit is in the first byte of a `uint16_t`.
+ *
+ * \return true if host is little endian.
+ */
+static inline bool nsgif__host_is_little_endian(void)
+{
+	static const uint16_t test = 1;
+
+	return ((const uint8_t *) &test)[0] == 1;
+}
+
+static struct nsgif_colour_layout nsgif__bitmap_fmt_to_colour_layout(
+		nsgif_bitmap_fmt_t bitmap_fmt)
+{
+	bool le = nsgif__host_is_little_endian();
+
+	/* Map endian-dependant formats to byte-wise format for the host. */
+	switch (bitmap_fmt) {
+	case NSGIF_BITMAP_FMT_RGBA8888:
+		bitmap_fmt = (le) ? NSGIF_BITMAP_FMT_A8B8G8R8
+		                  : NSGIF_BITMAP_FMT_R8G8B8A8;
+		break;
+	case NSGIF_BITMAP_FMT_BGRA8888:
+		bitmap_fmt = (le) ? NSGIF_BITMAP_FMT_A8R8G8B8
+		                  : NSGIF_BITMAP_FMT_B8G8R8A8;
+		break;
+	case NSGIF_BITMAP_FMT_ARGB8888:
+		bitmap_fmt = (le) ? NSGIF_BITMAP_FMT_B8G8R8A8
+		                  : NSGIF_BITMAP_FMT_A8R8G8B8;
+		break;
+	case NSGIF_BITMAP_FMT_ABGR8888:
+		bitmap_fmt = (le) ? NSGIF_BITMAP_FMT_R8G8B8A8
+		                  : NSGIF_BITMAP_FMT_A8B8G8R8;
+		break;
+	default:
+		break;
+	}
+
+	/* Set up colour component order for bitmap format. */
+	switch (bitmap_fmt) {
+	default:
+		/* Fall through. */
+	case NSGIF_BITMAP_FMT_R8G8B8A8:
+		return (struct nsgif_colour_layout) {
+			.r = 0,
+			.g = 1,
+			.b = 2,
+			.a = 3,
+		};
+
+	case NSGIF_BITMAP_FMT_B8G8R8A8:
+		return (struct nsgif_colour_layout) {
+			.b = 0,
+			.g = 1,
+			.r = 2,
+			.a = 3,
+		};
+
+	case NSGIF_BITMAP_FMT_A8R8G8B8:
+		return (struct nsgif_colour_layout) {
+			.a = 0,
+			.r = 1,
+			.g = 2,
+			.b = 3,
+		};
+
+	case NSGIF_BITMAP_FMT_A8B8G8R8:
+		return (struct nsgif_colour_layout) {
+			.a = 0,
+			.b = 1,
+			.g = 2,
+			.r = 3,
+		};
+	}
+}
+
 /* exported function documented in nsgif.h */
-nsgif_error nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif_t **gif_out)
+nsgif_error nsgif_create(
+		const nsgif_bitmap_cb_vt *bitmap_vt,
+		nsgif_bitmap_fmt_t bitmap_fmt,
+		nsgif_t **gif_out)
 {
 	nsgif_t *gif;
 
@@ -1359,6 +1451,8 @@ nsgif_error nsgif_create(const nsgif_bitmap_cb_vt *bitmap_vt, nsgif_t **gif_out)
 
 	gif->delay_min = 2;
 	gif->delay_default = 10;
+
+	gif->colour_layout = nsgif__bitmap_fmt_to_colour_layout(bitmap_fmt);
 
 	*gif_out = gif;
 	return NSGIF_OK;

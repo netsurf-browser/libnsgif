@@ -231,13 +231,15 @@ const char *nsgif_strerror(nsgif_error err);
 /**
  * Create the NSGIF object.
  *
- * \param[in]  bitmap_vt  Bitmap operation functions v-table.
- * \param[out] gif_out    Return \ref nsgif_t object on success.
+ * \param[in]  bitmap_vt   Bitmap operation functions v-table.
+ * \param[in]  bitmap_fmt  Bitmap pixel format specification.
+ * \param[out] gif_out     Return \ref nsgif_t object on success.
  *
  * \return NSGIF_OK on success, or appropriate error otherwise.
  */
 nsgif_error nsgif_create(
 		const nsgif_bitmap_cb_vt *bitmap_vt,
+		nsgif_bitmap_fmt_t bitmap_fmt,
 		nsgif_t **gif_out);
 
 /**
