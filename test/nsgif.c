@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* create our gif animation */
-	err = nsgif_create(&bitmap_callbacks, &gif);
+	err = nsgif_create(&bitmap_callbacks, NSGIF_BITMAP_FMT_R8G8B8A8, &gif);
 	if (err != NSGIF_OK) {
 		warning("nsgif_create", err);
 		return EXIT_FAILURE;
