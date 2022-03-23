@@ -99,14 +99,69 @@ typedef enum {
 } nsgif_error;
 
 /**
+ * NSGIF \ref nsgif_bitmap_t pixel format.
+ *
+ * All pixel formats are 32 bits per pixel (bpp). The different formats
+ * allow control over the ordering of the colour channels. All colour
+ * channels are 8 bits wide.
+ *
+ * Note that the GIF file format only supports an on/off mask, so the
+ * alpha (A) component (opacity) will always have a value of `0` (fully
+ * transparent) or `255` (fully opaque).
+ */
+typedef enum nsgif_bitmap_fmt {
+	/** Bite-wise RGBA: Byte order: 0xRR, 0xGG, 0xBB, 0xAA. */
+	NSGIF_BITMAP_FMT_R8G8B8A8,
+
+	/** Bite-wise BGRA: Byte order: 0xBB, 0xGG, 0xRR, 0xAA. */
+	NSGIF_BITMAP_FMT_B8G8R8A8,
+
+	/** Bite-wise ARGB: Byte order: 0xAA, 0xRR, 0xGG, 0xBB. */
+	NSGIF_BITMAP_FMT_A8R8G8B8,
+
+	/** Bite-wise ABGR: Byte order: 0xAA, 0xBB, 0xGG, 0xRR. */
+	NSGIF_BITMAP_FMT_A8B8G8R8,
+
+	/**
+	 * 32-bit RGBA (0xRRGGBBAA).
+	 *
+	 * * On little endian host, same as \ref NSGIF_BITMAP_FMT_A8B8G8R8.
+	 * * On big endian host, same as \ref NSGIF_BITMAP_FMT_R8G8B8A8.
+	 */
+	NSGIF_BITMAP_FMT_RGBA8888,
+
+	/**
+	 * 32-bit BGRA (0xBBGGRRAA).
+	 *
+	 * * On little endian host, same as \ref NSGIF_BITMAP_FMT_A8R8G8B8.
+	 * * On big endian host, same as \ref NSGIF_BITMAP_FMT_B8G8R8A8.
+	 */
+	NSGIF_BITMAP_FMT_BGRA8888,
+
+	/**
+	 * 32-bit ARGB (0xAARRGGBB).
+	 *
+	 * * On little endian host, same as \ref NSGIF_BITMAP_FMT_B8G8R8A8.
+	 * * On big endian host, same as \ref NSGIF_BITMAP_FMT_A8R8G8B8.
+	 */
+	NSGIF_BITMAP_FMT_ARGB8888,
+
+	/**
+	 * 32-bit BGRA (0xAABBGGRR).
+	 *
+	 * * On little endian host, same as \ref NSGIF_BITMAP_FMT_R8G8B8A8.
+	 * * On big endian host, same as \ref NSGIF_BITMAP_FMT_A8B8G8R8.
+	 */
+	NSGIF_BITMAP_FMT_ABGR8888,
+} nsgif_bitmap_fmt_t;
+
+/**
  * Client bitmap type.
  *
  * These are client-created and destroyed, via the \ref bitmap callbacks,
  * but they are owned by a \ref nsgif_t.
  *
- * The pixel buffer is is 32bpp, treated as individual bytes in the component
- * order RR GG BB AA. For example, a 1x1 image with a single orange pixel would
- * be encoded as the following sequence of bytes: 0xff, 0x88, 0x00, 0x00.
+ * See \ref nsgif_bitmap_fmt for pixel format information.
  */
 typedef void nsgif_bitmap_t;
 
