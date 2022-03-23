@@ -1052,6 +1052,7 @@ static nsgif_error nsgif__parse_image_descriptor(
 static nsgif_error nsgif__colour_table_extract(
 		struct nsgif *gif,
 		uint32_t colour_table[NSGIF_MAX_COLOURS],
+		const struct nsgif_colour_layout *layout,
 		size_t colour_table_entries,
 		const uint8_t **pos,
 		bool decode)
@@ -1070,16 +1071,16 @@ static nsgif_error nsgif__colour_table_extract(
 		while (count--) {
 			/* Gif colour map contents are r,g,b.
 			 *
-			 * We want to pack them bytewise into the
-			 * colour table, such that the red component
-			 * is in byte 0 and the alpha component is in
-			 * byte 3.
+			 * We want to pack them bytewise into the colour table,
+			 * according to the client colour layout.
 			 */
 
-			*entry++ = *data++; /* r */
-			*entry++ = *data++; /* g */
-			*entry++ = *data++; /* b */
-			*entry++ = 0xff;    /* a */
+			entry[layout->r] = *data++;
+			entry[layout->g] = *data++;
+			entry[layout->b] = *data++;
+			entry[layout->a] = 0xff;
+
+			entry += sizeof(uint32_t);
 		}
 	}
 
@@ -1114,7 +1115,8 @@ static nsgif_error nsgif__parse_colour_table(
 		return NSGIF_OK;
 	}
 
-	ret = nsgif__colour_table_extract(gif, gif->local_colour_table,
+	ret = nsgif__colour_table_extract(gif,
+			gif->local_colour_table, &gif->colour_layout,
 			2 << (frame->flags & NSGIF_COLOUR_TABLE_SIZE_MASK),
 			pos, decode);
 	if (ret != NSGIF_OK) {
@@ -1629,6 +1631,7 @@ nsgif_error nsgif_data_scan(
 		if (gif->global_colours) {
 			ret = nsgif__colour_table_extract(gif,
 					gif->global_colour_table,
+					&gif->colour_layout,
 					gif->colour_table_size,
 					&nsgif_data, true);
 			if (ret != NSGIF_OK) {
@@ -1638,15 +1641,22 @@ nsgif_error nsgif_data_scan(
 			gif->buf_pos = (nsgif_data - gif->buf);
 		} else {
 			/* Create a default colour table with the first two
-			 * colours as black and white
-			 */
-			uint32_t *entry = gif->global_colour_table;
+			 * colours as black and white. */
+			uint8_t *entry = (uint8_t *)gif->global_colour_table;
 
-			entry[0] = 0x00000000;
-			/* Force Alpha channel to opaque */
-			((uint8_t *) entry)[3] = 0xff;
+			/* Black */
+			entry[gif->colour_layout.r] = 0x00;
+			entry[gif->colour_layout.g] = 0x00;
+			entry[gif->colour_layout.b] = 0x00;
+			entry[gif->colour_layout.a] = 0xFF;
 
-			entry[1] = 0xffffffff;
+			entry += sizeof(uint32_t);
+
+			/* White */
+			entry[gif->colour_layout.r] = 0xFF;
+			entry[gif->colour_layout.g] = 0xFF;
+			entry[gif->colour_layout.b] = 0xFF;
+			entry[gif->colour_layout.a] = 0xFF;
 		}
 
 		if (gif->global_colours &&
