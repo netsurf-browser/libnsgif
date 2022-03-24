@@ -1364,9 +1364,9 @@ void nsgif_destroy(nsgif_t *gif)
  */
 static inline bool nsgif__host_is_little_endian(void)
 {
-	static const uint16_t test = 1;
+	const uint16_t test = 1;
 
-	return ((const uint8_t *) &test)[0] == 1;
+	return ((const uint8_t *) &test)[0];
 }
 
 static struct nsgif_colour_layout nsgif__bitmap_fmt_to_colour_layout(
