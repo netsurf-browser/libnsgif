@@ -591,18 +591,6 @@ static inline nsgif_error nsgif__decode(
 }
 
 /**
- * Helper to assign a gif background colour array from a pixel representation.
- *
- * \param[in]  px  The pixel colour to read from.
- * \param[out] bg  The background colour to write.
- */
-static inline void nsgif__gif_px_to_bg(
-		const uint32_t *px, uint8_t bg[4])
-{
-	*(uint32_t *)bg = *px;
-}
-
-/**
  * Restore a GIF to the background colour.
  *
  * \param[in] gif     The gif object we're decoding.
