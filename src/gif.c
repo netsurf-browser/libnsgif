@@ -591,18 +591,6 @@ static inline nsgif_error nsgif__decode(
 }
 
 /**
- * Helper to assign a pixel representation from a gif background colour array.
- *
- * \param[in]  bg  The background colour to read from.
- * \param[out] px  The pixel colour to write.
- */
-static inline void nsgif__gif_bg_to_px(
-		const uint8_t bg[4], uint32_t *px)
-{
-	*px = *(uint32_t *)bg;
-}
-
-/**
  * Helper to assign a gif background colour array from a pixel representation.
  *
  * \param[in]  px  The pixel colour to read from.
@@ -656,9 +644,7 @@ static void nsgif__restore_bg(
 				uint32_t *scanline = bitmap + offset_x +
 						(offset_y + y) * gif->info.width;
 				for (uint32_t x = 0; x < width; x++) {
-					nsgif__gif_bg_to_px(
-							gif->info.background,
-							&scanline[x]);
+					scanline[x] = gif->info.background;
 				}
 			}
 		}
@@ -1662,13 +1648,9 @@ nsgif_error nsgif_data_scan(
 		if (gif->global_colours &&
 		    gif->bg_index < gif->colour_table_size) {
 			size_t bg_idx = gif->bg_index;
-			nsgif__gif_px_to_bg(
-					&gif->global_colour_table[bg_idx],
-					gif->info.background);
+			gif->info.background = gif->global_colour_table[bg_idx];
 		} else {
-			nsgif__gif_px_to_bg(
-					&gif->global_colour_table[0],
-					gif->info.background);
+			gif->info.background = gif->global_colour_table[0];
 		}
 	}
 
