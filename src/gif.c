@@ -20,6 +20,16 @@
 /** Maximum colour table size */
 #define NSGIF_MAX_COLOURS 256
 
+/** Default minimum allowable frame delay in cs. */
+#define NSGIF_FRAME_DELAY_MIN 2
+
+/**
+ * Default frame delay to apply.
+ *
+ * Used when a frame delay lower than the minimum is requested.
+ */
+#define NSGIF_FRAME_DELAY_DEFAULT 10
+
 /** GIF frame data */
 typedef struct nsgif_frame {
 	struct nsgif_frame_info info;
@@ -65,7 +75,10 @@ struct nsgif {
 	/** currently decoded image; stored as bitmap from bitmap_create callback */
 	nsgif_bitmap_t *frame_image;
 
+	/** Minimum allowable frame delay. */
 	uint16_t delay_min;
+
+	/** Frame delay to apply when delay is less than \ref delay_min. */
 	uint16_t delay_default;
 
 	/** number of animation loops so far */
@@ -1428,8 +1441,8 @@ nsgif_error nsgif_create(
 	gif->decoded_frame = NSGIF_FRAME_INVALID;
 	gif->prev_index = NSGIF_FRAME_INVALID;
 
-	gif->delay_min = 2;
-	gif->delay_default = 10;
+	gif->delay_min = NSGIF_FRAME_DELAY_MIN;
+	gif->delay_default = NSGIF_FRAME_DELAY_DEFAULT;
 
 	gif->colour_layout = nsgif__bitmap_fmt_to_colour_layout(bitmap_fmt);
 
