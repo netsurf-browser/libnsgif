@@ -68,6 +68,9 @@ struct nsgif {
 	uint16_t delay_min;
 	uint16_t delay_default;
 
+	/** number of animation loops so far */
+	int loop_count;
+
 	/** number of frames partially decoded */
 	uint32_t frame_count_partial;
 
@@ -1737,7 +1740,7 @@ static inline bool nsgif__animation_complete(int count, int max)
 nsgif_error nsgif_reset(
 		nsgif_t *gif)
 {
-	gif->info.loop_count = 0;
+	gif->loop_count = 0;
 	gif->frame = NSGIF_FRAME_INVALID;
 
 	return NSGIF_OK;
@@ -1765,7 +1768,7 @@ nsgif_error nsgif_frame_prepare(
 	}
 
 	if (nsgif__animation_complete(
-			gif->info.loop_count,
+			gif->loop_count,
 			gif->info.loop_max)) {
 		return NSGIF_ERR_ANIMATION_END;
 	}
@@ -1776,7 +1779,7 @@ nsgif_error nsgif_frame_prepare(
 	}
 
 	if (gif->frame != NSGIF_FRAME_INVALID && frame < gif->frame) {
-		gif->info.loop_count++;
+		gif->loop_count++;
 	}
 
 	if (gif->info.frame_count == 1) {
@@ -1791,7 +1794,7 @@ nsgif_error nsgif_frame_prepare(
 
 		if (frame_next < frame) {
 			if (nsgif__animation_complete(
-					gif->info.loop_count + 1,
+					gif->loop_count + 1,
 					gif->info.loop_max)) {
 				delay = NSGIF_INFINITE;
 			}
