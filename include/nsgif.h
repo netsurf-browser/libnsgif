@@ -408,4 +408,35 @@ const nsgif_frame_info_t *nsgif_get_frame_info(
 		const nsgif_t *gif,
 		uint32_t frame);
 
+/**
+ * Configure handling of small frame delays.
+ *
+ * Historically people created GIFs with a tiny frame delay, however the slow
+ * hardware of the time meant they actually played much slower. As computers
+ * sped up, to prevent animations playing faster than intended, decoders came
+ * to ignore overly small frame delays.
+ *
+ * By default a \ref nsgif_frame_prepare() managed animation will override
+ * frame delays of less than 2 centiseconds with a default frame delay of
+ * 10 centiseconds. This matches the behaviour of web browsers and other
+ * renderers.
+ *
+ * Both the minimum and the default values can be overridden for a given GIF
+ * by the client. To get frame delays exactly as specified by the GIF file, set
+ * \ref delay_min to zero.
+ *
+ * Note that this does not affect the frame delay in the frame info
+ * (\ref nsgif_frame_info_t) structure, which will always contain values
+ * specified by the GIF.
+ *
+ * \param[in]  gif            The \ref nsgif_t object to configure.
+ * \param[in]  delay_min      The minimum frame delay in centiseconds.
+ * \param[in]  delay_default  The delay to use if a frame delay is less than
+ *                            \ref delay_min.
+ */
+void nsgif_set_frame_delay_behaviour(
+		nsgif_t *gif,
+		uint16_t delay_min,
+		uint16_t delay_default);
+
 #endif

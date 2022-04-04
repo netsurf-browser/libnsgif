@@ -1450,6 +1450,16 @@ nsgif_error nsgif_create(
 	return NSGIF_OK;
 }
 
+/* exported function documented in nsgif.h */
+void nsgif_set_frame_delay_behaviour(
+		nsgif_t *gif,
+		uint16_t delay_min,
+		uint16_t delay_default)
+{
+	gif->delay_min = delay_min;
+	gif->delay_default = delay_default;
+}
+
 /**
  * Read GIF header.
  *
