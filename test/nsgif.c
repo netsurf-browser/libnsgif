@@ -221,7 +221,9 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 
 		err = nsgif_frame_decode(gif, frame_new, &bitmap);
 		if (err != NSGIF_OK) {
-			warning("nsgif_decode_frame", err);
+			fprintf(stderr, "Frame %"PRIu32": "
+					"nsgif_decode_frame failed: %s\n",
+					frame_new, nsgif_strerror(err));
 			/* Continue decoding the rest of the frames. */
 
 		} else if (ppm != NULL) {
