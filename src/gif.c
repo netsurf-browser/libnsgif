@@ -525,7 +525,7 @@ static nsgif_error nsgif__decode_simple(
 		uint32_t *restrict frame_data,
 		uint32_t *restrict colour_table)
 {
-	uint32_t pixels = gif->info.width * height;
+	uint32_t pixels;
 	uint32_t written = 0;
 	nsgif_error ret = NSGIF_OK;
 	lzw_result res;
@@ -550,6 +550,7 @@ static nsgif_error nsgif__decode_simple(
 	}
 
 	frame_data += (offset_y * gif->info.width);
+	pixels = gif->info.width * height;
 
 	while (pixels > 0) {
 		res = lzw_decode_map(gif->lzw_ctx,
