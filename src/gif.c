@@ -72,8 +72,11 @@ struct nsgif {
 	uint32_t frame;
 	/** current frame decoded to bitmap */
 	uint32_t decoded_frame;
+
 	/** currently decoded image; stored as bitmap from bitmap_create callback */
 	nsgif_bitmap_t *frame_image;
+	/** Row span of frame_image in pixels. */
+	uint32_t rowspan;
 
 	/** Minimum allowable frame delay. */
 	uint16_t delay_min;
@@ -221,6 +224,11 @@ static inline uint32_t* nsgif__bitmap_get(
 	ret = nsgif__initialise_sprite(gif, gif->info.width, gif->info.height);
 	if (ret != NSGIF_OK) {
 		return NULL;
+	}
+
+	gif->rowspan = gif->info.width;
+	if (gif->bitmap.get_rowspan) {
+		gif->rowspan = gif->bitmap.get_rowspan(gif->frame_image);
 	}
 
 	/* Get the frame data */
@@ -463,7 +471,7 @@ static nsgif_error nsgif__decode_complex(
 		uint32_t *frame_scanline;
 
 		frame_scanline = frame_data + offset_x +
-				(y + offset_y) * gif->info.width;
+				(y + offset_y) * gif->rowspan;
 
 		x = width;
 		while (x > 0) {
@@ -594,7 +602,9 @@ static inline nsgif_error nsgif__decode(
 	uint32_t transparency_index = frame->transparency_index;
 	uint32_t *restrict colour_table = gif->colour_table;
 
-	if (interlace == false && width == gif->info.width && offset_x == 0) {
+	if (interlace == false && offset_x == 0 &&
+			width == gif->info.width &&
+			width == gif->rowspan) {
 		ret = nsgif__decode_simple(gif, height, offset_y,
 				data, transparency_index,
 				frame_data, colour_table);

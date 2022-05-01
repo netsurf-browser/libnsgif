@@ -162,6 +162,11 @@ typedef enum nsgif_bitmap_fmt {
  * but they are owned by a \ref nsgif_t.
  *
  * See \ref nsgif_bitmap_fmt for pixel format information.
+ *
+ * The bitmap may have a row_span greater than the bitmap width, but the
+ * difference between row span and width must be a whole number of pixels
+ * (a multiple of four bytes). If row span is greater than width, the
+ * \ref get_rowspan callback must be provided.
  */
 typedef void nsgif_bitmap_t;
 
@@ -186,7 +191,8 @@ typedef struct nsgif_bitmap_cb_vt {
 	/**
 	 * Get pointer to pixel buffer in a bitmap.
 	 *
-	 * The pixel buffer must be `width * height * sizeof(uint32_t)`.
+	 * The pixel buffer must be `(width + N) * height * sizeof(uint32_t)`.
+	 * Where `N` is any number greater than or equal to 0.
 	 * Note that the returned pointer to uint8_t must be 4-byte aligned.
 	 *
 	 * \param[in]  bitmap  The bitmap.
@@ -218,6 +224,15 @@ typedef struct nsgif_bitmap_cb_vt {
 	 * \param[in]  bitmap  The bitmap.
 	 */
 	void (*modified)(nsgif_bitmap_t *bitmap);
+
+	/**
+	 * Get row span in pixels.
+	 *
+	 * If this callback is not provided, LibNSGIF will use the width.
+	 *
+	 * \param[in]  bitmap  The bitmap.
+	 */
+	uint32_t (*get_rowspan)(nsgif_bitmap_t *bitmap);
 } nsgif_bitmap_cb_vt;
 
 /**
