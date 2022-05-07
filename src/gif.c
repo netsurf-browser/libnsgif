@@ -103,11 +103,9 @@ struct nsgif {
 	uint32_t bg_index;
 	/** image aspect ratio (ignored) */
 	uint32_t aspect_ratio;
-	/** size of colour table (in entries) */
+	/** size of global colour table (in entries) */
 	uint32_t colour_table_size;
 
-	/** whether the GIF has a global colour table */
-	bool global_colours;
 	/** current colour table */
 	uint32_t *colour_table;
 	/** Client's colour component order. */
@@ -1117,6 +1115,10 @@ static nsgif_error nsgif__parse_colour_table(
 		return NSGIF_OK;
 	}
 
+	if (decode == false) {
+		frame->info.colour_table = true;
+	}
+
 	ret = nsgif__colour_table_extract(gif,
 			gif->local_colour_table, &gif->colour_layout,
 			2 << (frame->flags & NSGIF_COLOUR_TABLE_SIZE_MASK),
@@ -1234,6 +1236,7 @@ static struct nsgif_frame *nsgif__get_frame(
 
 		frame->transparency_index = NSGIF_NO_TRANSPARENCY;
 		frame->frame_pointer = gif->buf_pos;
+		frame->info.colour_table = false;
 		frame->info.transparency = false;
 		frame->redraw_required = false;
 		frame->info.display = false;
@@ -1546,7 +1549,7 @@ static nsgif_error nsgif__parse_logical_screen_descriptor(
 
 	gif->info.width = data[0] | (data[1] << 8);
 	gif->info.height = data[2] | (data[3] << 8);
-	gif->global_colours = data[4] & NSGIF_COLOUR_TABLE_MASK;
+	gif->info.colour_table = data[4] & NSGIF_COLOUR_TABLE_MASK;
 	gif->colour_table_size = 2 << (data[4] & NSGIF_COLOUR_TABLE_SIZE_MASK);
 	gif->bg_index = data[5];
 	gif->aspect_ratio = data[6];
@@ -1640,7 +1643,7 @@ nsgif_error nsgif_data_scan(
 	 */
 	if (gif->global_colour_table[0] == NSGIF_PROCESS_COLOURS) {
 		/* Check for a global colour map signified by bit 7 */
-		if (gif->global_colours) {
+		if (gif->info.colour_table) {
 			ret = nsgif__colour_table_extract(gif,
 					gif->global_colour_table,
 					&gif->colour_layout,
@@ -1671,7 +1674,7 @@ nsgif_error nsgif_data_scan(
 			entry[gif->colour_layout.a] = 0xFF;
 		}
 
-		if (gif->global_colours &&
+		if (gif->info.colour_table &&
 		    gif->bg_index < gif->colour_table_size) {
 			size_t bg_idx = gif->bg_index;
 			gif->info.background = gif->global_colour_table[bg_idx];
