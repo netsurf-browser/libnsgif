@@ -23,6 +23,9 @@
 /** Representation of infinity. */
 #define NSGIF_INFINITE (UINT32_MAX)
 
+/** Maximum colour table size */
+#define NSGIF_MAX_COLOURS 256
+
 /**
  * Opaque type used by LibNSGIF to represent a GIF object in memory.
  */
@@ -426,6 +429,23 @@ const nsgif_info_t *nsgif_get_info(const nsgif_t *gif);
 const nsgif_frame_info_t *nsgif_get_frame_info(
 		const nsgif_t *gif,
 		uint32_t frame);
+
+/**
+ * Get the global colour palette.
+ *
+ * If the GIF has no global colour table, this will return the default
+ * colour palette.
+ *
+ * Colours in same pixel format as \ref nsgif_bitmap_t.
+ *
+ * \param[in]  gif      The \ref nsgif_t object.
+ * \param[out] table    Client buffer to hold the colour table.
+ * \param[out] entries  The number of used entries in the colour table.
+ */
+void nsgif_global_palette(
+		const nsgif_t *gif,
+		uint32_t table[NSGIF_MAX_COLOURS],
+		size_t *entries);
 
 /**
  * Configure handling of small frame delays.

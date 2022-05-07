@@ -17,9 +17,6 @@
 #include "lzw.h"
 #include "nsgif.h"
 
-/** Maximum colour table size */
-#define NSGIF_MAX_COLOURS 256
-
 /** Default minimum allowable frame delay in cs. */
 #define NSGIF_FRAME_DELAY_MIN 2
 
@@ -1672,6 +1669,8 @@ nsgif_error nsgif_data_scan(
 			entry[gif->colour_layout.g] = 0xFF;
 			entry[gif->colour_layout.b] = 0xFF;
 			entry[gif->colour_layout.a] = 0xFF;
+
+			gif->colour_table_size = 2;
 		}
 
 		if (gif->info.colour_table &&
@@ -1906,6 +1905,18 @@ const nsgif_frame_info_t *nsgif_get_frame_info(
 	}
 
 	return &gif->frames[frame].info;
+}
+
+/* exported function documented in nsgif.h */
+void nsgif_global_palette(
+		const nsgif_t *gif,
+		uint32_t table[NSGIF_MAX_COLOURS],
+		size_t *entries)
+{
+	size_t len = sizeof(*table) * NSGIF_MAX_COLOURS;
+
+	memcpy(table, gif->global_colour_table, len);
+	*entries = gif->colour_table_size;
 }
 
 /* exported function documented in nsgif.h */
