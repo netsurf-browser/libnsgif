@@ -43,6 +43,9 @@ typedef struct nsgif_frame {
 	/** the index designating a transparent pixel */
 	uint32_t transparency_index;
 
+	/** offset to frame colour table */
+	uint32_t colour_table_offset;
+
 	/* Frame flags */
 	uint32_t flags;
 } nsgif_frame;
@@ -1128,6 +1131,10 @@ static nsgif_error nsgif__parse_colour_table(
 	if ((frame->flags & NSGIF_COLOUR_TABLE_MASK) == 0) {
 		gif->colour_table = gif->global_colour_table;
 		return NSGIF_OK;
+	}
+
+	if (decode == false) {
+		frame->colour_table_offset = *pos - gif->buf;
 	}
 
 	ret = nsgif__colour_table_extract(
