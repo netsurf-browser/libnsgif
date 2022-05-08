@@ -1039,6 +1039,38 @@ static nsgif_error nsgif__parse_image_descriptor(
 /**
  * Extract a GIF colour table into a LibNSGIF colour table buffer.
  *
+ * \param[in] colour_table          The colour table to populate.
+ * \param[in] layout                la.
+ * \param[in] colour_table_entries  The number of colour table entries.
+ * \param[in] Data                  Raw colour table data.
+ */
+static void nsgif__colour_table_decode(
+		uint32_t colour_table[NSGIF_MAX_COLOURS],
+		const struct nsgif_colour_layout *layout,
+		size_t colour_table_entries,
+		const uint8_t *data)
+{
+	uint8_t *entry = (uint8_t *)colour_table;
+
+	while (colour_table_entries--) {
+		/* Gif colour map contents are r,g,b.
+		 *
+		 * We want to pack them bytewise into the colour table,
+		 * according to the client colour layout.
+		 */
+
+		entry[layout->r] = *data++;
+		entry[layout->g] = *data++;
+		entry[layout->b] = *data++;
+		entry[layout->a] = 0xff;
+
+		entry += sizeof(uint32_t);
+	}
+}
+
+/**
+ * Extract a GIF colour table into a LibNSGIF colour table buffer.
+ *
  * \param[in] gif                   The gif object we're decoding.
  * \param[in] colour_table          The colour table to populate.
  * \param[in] colour_table_entries  The number of colour table entries.
@@ -1046,42 +1078,25 @@ static nsgif_error nsgif__parse_image_descriptor(
  * \param[in] decode                Whether to decode the colour table.
  * \return NSGIF_OK on success, appropriate error otherwise.
  */
-static nsgif_error nsgif__colour_table_extract(
-		struct nsgif *gif,
+static inline nsgif_error nsgif__colour_table_extract(
 		uint32_t colour_table[NSGIF_MAX_COLOURS],
 		const struct nsgif_colour_layout *layout,
 		size_t colour_table_entries,
-		const uint8_t **pos,
+		const uint8_t *data,
+		size_t data_len,
+		size_t *used,
 		bool decode)
 {
-	const uint8_t *data = *pos;
-	size_t len = gif->buf + gif->buf_len - data;
-
-	if (len < colour_table_entries * 3) {
+	if (data_len < colour_table_entries * 3) {
 		return NSGIF_ERR_END_OF_DATA;
 	}
 
 	if (decode) {
-		int count = colour_table_entries;
-		uint8_t *entry = (uint8_t *)colour_table;
-
-		while (count--) {
-			/* Gif colour map contents are r,g,b.
-			 *
-			 * We want to pack them bytewise into the colour table,
-			 * according to the client colour layout.
-			 */
-
-			entry[layout->r] = *data++;
-			entry[layout->g] = *data++;
-			entry[layout->b] = *data++;
-			entry[layout->a] = 0xff;
-
-			entry += sizeof(uint32_t);
-		}
+		nsgif__colour_table_decode(colour_table, layout,
+				colour_table_entries, data);
 	}
 
-	*pos += colour_table_entries * 3;
+	*used = colour_table_entries * 3;
 	return NSGIF_OK;
 }
 
@@ -1103,6 +1118,9 @@ static nsgif_error nsgif__parse_colour_table(
 		bool decode)
 {
 	nsgif_error ret;
+	const uint8_t *data = *pos;
+	size_t len = gif->buf + gif->buf_len - data;
+	size_t used_bytes;
 
 	assert(gif != NULL);
 	assert(frame != NULL);
@@ -1112,19 +1130,21 @@ static nsgif_error nsgif__parse_colour_table(
 		return NSGIF_OK;
 	}
 
-	if (decode == false) {
-		frame->info.colour_table = true;
-	}
-
-	ret = nsgif__colour_table_extract(gif,
+	ret = nsgif__colour_table_extract(
 			gif->local_colour_table, &gif->colour_layout,
 			2 << (frame->flags & NSGIF_COLOUR_TABLE_SIZE_MASK),
-			pos, decode);
+			data, len, &used_bytes, decode);
 	if (ret != NSGIF_OK) {
 		return ret;
 	}
+	*pos += used_bytes;
 
-	gif->colour_table = gif->local_colour_table;
+	if (decode) {
+		gif->colour_table = gif->local_colour_table;
+	} else {
+		frame->info.colour_table = true;
+	}
+
 	return NSGIF_OK;
 }
 
@@ -1641,15 +1661,19 @@ nsgif_error nsgif_data_scan(
 	if (gif->global_colour_table[0] == NSGIF_PROCESS_COLOURS) {
 		/* Check for a global colour map signified by bit 7 */
 		if (gif->info.colour_table) {
-			ret = nsgif__colour_table_extract(gif,
+			size_t remaining = gif->buf + gif->buf_len - nsgif_data;
+			size_t used;
+
+			ret = nsgif__colour_table_extract(
 					gif->global_colour_table,
 					&gif->colour_layout,
 					gif->colour_table_size,
-					&nsgif_data, true);
+					nsgif_data, remaining, &used, true);
 			if (ret != NSGIF_OK) {
 				return ret;
 			}
 
+			nsgif_data += used;
 			gif->buf_pos = (nsgif_data - gif->buf);
 		} else {
 			/* Create a default colour table with the first two
