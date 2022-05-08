@@ -1149,7 +1149,7 @@ static nsgif_error nsgif__parse_colour_table(
 	if (decode) {
 		gif->colour_table = gif->local_colour_table;
 	} else {
-		frame->info.colour_table = true;
+		frame->info.local_palette = true;
 	}
 
 	return NSGIF_OK;
@@ -1260,7 +1260,7 @@ static struct nsgif_frame *nsgif__get_frame(
 
 		frame->transparency_index = NSGIF_NO_TRANSPARENCY;
 		frame->frame_offset = gif->buf_pos;
-		frame->info.colour_table = false;
+		frame->info.local_palette = false;
 		frame->info.transparency = false;
 		frame->redraw_required = false;
 		frame->info.display = false;
@@ -1573,7 +1573,7 @@ static nsgif_error nsgif__parse_logical_screen_descriptor(
 
 	gif->info.width = data[0] | (data[1] << 8);
 	gif->info.height = data[2] | (data[3] << 8);
-	gif->info.colour_table = data[4] & NSGIF_COLOUR_TABLE_MASK;
+	gif->info.global_palette = data[4] & NSGIF_COLOUR_TABLE_MASK;
 	gif->colour_table_size = 2 << (data[4] & NSGIF_COLOUR_TABLE_SIZE_MASK);
 	gif->bg_index = data[5];
 	gif->aspect_ratio = data[6];
@@ -1667,7 +1667,7 @@ nsgif_error nsgif_data_scan(
 	 */
 	if (gif->global_colour_table[0] == NSGIF_PROCESS_COLOURS) {
 		/* Check for a global colour map signified by bit 7 */
-		if (gif->info.colour_table) {
+		if (gif->info.global_palette) {
 			size_t remaining = gif->buf + gif->buf_len - nsgif_data;
 			size_t used;
 
@@ -1704,7 +1704,7 @@ nsgif_error nsgif_data_scan(
 			gif->colour_table_size = 2;
 		}
 
-		if (gif->info.colour_table &&
+		if (gif->info.global_palette &&
 		    gif->bg_index < gif->colour_table_size) {
 			size_t bg_idx = gif->bg_index;
 			gif->info.background = gif->global_colour_table[bg_idx];
@@ -1964,7 +1964,7 @@ bool nsgif_local_palette(
 	}
 
 	f = &gif->frames[frame];
-	if (f->info.colour_table == false) {
+	if (f->info.local_palette == false) {
 		return false;
 	}
 

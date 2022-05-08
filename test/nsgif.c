@@ -150,8 +150,7 @@ static void print_gif_info(const nsgif_info_t *info)
 	fprintf(stdout, "  height: %"PRIu32"\n", info->height);
 	fprintf(stdout, "  max-loops: %"PRIu32"\n", info->loop_max);
 	fprintf(stdout, "  frame-count: %"PRIu32"\n", info->frame_count);
-	fprintf(stdout, "  global colour table: %s\n",
-			info->colour_table ? "yes" : "no");
+	fprintf(stdout, "  global palette: %s\n", info->global_palette ? "yes" : "no");
 	fprintf(stdout, "  background:\n");
 	fprintf(stdout, "    red: 0x%"PRIx8"\n", bg[0]);
 	fprintf(stdout, "    green: 0x%"PRIx8"\n", bg[1]);
@@ -164,7 +163,7 @@ static void print_gif_frame_info(const nsgif_frame_info_t *info, uint32_t i)
 	const char *disposal = nsgif_str_disposal(info->disposal);
 
 	fprintf(stdout, "  - frame: %"PRIu32"\n", i);
-	fprintf(stdout, "    local colour table: %s\n", info->colour_table ? "yes" : "no");
+	fprintf(stdout, "    local palette: %s\n", info->local_palette ? "yes" : "no");
 	fprintf(stdout, "    disposal-method: %s\n", disposal);
 	fprintf(stdout, "    transparency: %s\n", info->transparency ? "yes" : "no");
 	fprintf(stdout, "    display: %s\n", info->display ? "yes" : "no");
@@ -273,7 +272,7 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 	if (nsgif_options.info == true) {
 		print_gif_info(info);
 	}
-	if (nsgif_options.palette == true && info->colour_table == true) {
+	if (nsgif_options.palette == true && info->global_palette == true) {
 		save_global_palette(gif);
 	}
 

@@ -364,7 +364,7 @@ typedef struct nsgif_info {
 	/** background colour in same pixel format as \ref nsgif_bitmap_t. */
 	uint32_t background;
 	/** whether the GIF has a global colour table */
-	bool colour_table;
+	bool global_palette;
 } nsgif_info_t;
 
 /**
@@ -398,7 +398,7 @@ typedef struct nsgif_frame_info {
 	/** whether the frame may have transparency */
 	bool transparency;
 	/** whether the frame has a local colour table */
-	bool colour_table;
+	bool local_palette;
 
 	/** Disposal method for previous frame; affects plotting */
 	uint8_t disposal;
