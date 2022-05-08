@@ -32,7 +32,7 @@ typedef struct nsgif_frame {
 	struct nsgif_frame_info info;
 
 	/** offset (in bytes) to the GIF frame data */
-	uint32_t frame_pointer;
+	uint32_t frame_offset;
 	/** whether the frame has previously been decoded. */
 	bool decoded;
 	/** whether the frame is totally opaque */
@@ -1259,7 +1259,7 @@ static struct nsgif_frame *nsgif__get_frame(
 		frame = &gif->frames[frame_idx];
 
 		frame->transparency_index = NSGIF_NO_TRANSPARENCY;
-		frame->frame_pointer = gif->buf_pos;
+		frame->frame_offset = gif->buf_pos;
 		frame->info.colour_table = false;
 		frame->info.transparency = false;
 		frame->redraw_required = false;
@@ -1298,7 +1298,7 @@ static nsgif_error nsgif__process_frame(
 	end = gif->buf + gif->buf_len;
 
 	if (decode) {
-		pos = gif->buf + frame->frame_pointer;
+		pos = gif->buf + frame->frame_offset;
 
 		/* Ensure this frame is supposed to be decoded */
 		if (frame->info.display == false) {
