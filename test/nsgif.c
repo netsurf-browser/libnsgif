@@ -235,6 +235,22 @@ static bool save_global_palette(const nsgif_t *gif)
 			table, entries);
 }
 
+static bool save_local_palette(const nsgif_t *gif, uint32_t frame)
+{
+	static uint32_t table[NSGIF_MAX_COLOURS];
+	char filename[64];
+	size_t entries;
+
+	snprintf(filename, sizeof(filename), "local-palette-%"PRIu32".ppm",
+			frame);
+
+	if (!nsgif_local_palette(gif, frame, table, &entries)) {
+		return false;
+	}
+
+	return save_palette(nsgif_options.file, filename, table, entries);
+}
+
 static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 {
 	nsgif_error err;
@@ -290,6 +306,9 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 			if (f_info != NULL) {
 				print_gif_frame_info(f_info, frame_new);
 			}
+		}
+		if (nsgif_options.palette == true) {
+			save_local_palette(gif, frame_new);
 		}
 
 		err = nsgif_frame_decode(gif, frame_new, &bitmap);
