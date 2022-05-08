@@ -391,6 +391,9 @@ int main(int argc, char *argv[])
 
 	for (uint64_t i = 0; i < nsgif_options.loops; i++) {
 		decode(ppm, nsgif_options.file, gif, i == 0);
+
+		/* We want to ignore any loop limit in the GIF. */
+		nsgif_reset(gif);
 	}
 
 	if (ppm != NULL) {
