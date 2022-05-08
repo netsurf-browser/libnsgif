@@ -250,7 +250,7 @@ static bool save_local_palette(const nsgif_t *gif, uint32_t frame)
 	return save_palette(nsgif_options.file, filename, table, entries);
 }
 
-static void decode(FILE* ppm, const char *name, nsgif_t *gif)
+static void decode(FILE* ppm, const char *name, nsgif_t *gif, bool first)
 {
 	nsgif_error err;
 	uint32_t frame_prev = 0;
@@ -258,7 +258,7 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 
 	info = nsgif_get_info(gif);
 
-	if (ppm != NULL) {
+	if (first && ppm != NULL) {
 		fprintf(ppm, "P3\n");
 		fprintf(ppm, "# %s\n", name);
 		fprintf(ppm, "# width                %u \n", info->width);
@@ -269,10 +269,10 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 				info->height * info->frame_count);
 	}
 
-	if (nsgif_options.info == true) {
+	if (first && nsgif_options.info) {
 		print_gif_info(info);
 	}
-	if (nsgif_options.palette == true && info->global_palette == true) {
+	if (first && nsgif_options.palette && info->global_palette) {
 		save_global_palette(gif);
 	}
 
@@ -298,7 +298,7 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 		}
 		frame_prev = frame_new;
 
-		if (nsgif_options.info == true) {
+		if (first && nsgif_options.info) {
 			const nsgif_frame_info_t *f_info;
 
 			f_info = nsgif_get_frame_info(gif, frame_new);
@@ -306,7 +306,7 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 				print_gif_frame_info(f_info, frame_new);
 			}
 		}
-		if (nsgif_options.palette == true) {
+		if (first && nsgif_options.palette) {
 			save_local_palette(gif, frame_new);
 		}
 
@@ -317,7 +317,7 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 					frame_new, nsgif_strerror(err));
 			/* Continue decoding the rest of the frames. */
 
-		} else if (ppm != NULL) {
+		} else if (first && ppm != NULL) {
 			fprintf(ppm, "# frame %u:\n", frame_new);
 			image = (const uint8_t *) bitmap;
 			for (uint32_t y = 0; y != info->height; y++) {
@@ -390,7 +390,7 @@ int main(int argc, char *argv[])
 	}
 
 	for (uint64_t i = 0; i < nsgif_options.loops; i++) {
-		decode((i == 0) ? ppm : NULL, nsgif_options.file, gif);
+		decode(ppm, nsgif_options.file, gif, i == 0);
 	}
 
 	if (ppm != NULL) {
