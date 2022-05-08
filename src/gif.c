@@ -1951,6 +1951,31 @@ void nsgif_global_palette(
 }
 
 /* exported function documented in nsgif.h */
+bool nsgif_local_palette(
+		const nsgif_t *gif,
+		uint32_t frame,
+		uint32_t table[NSGIF_MAX_COLOURS],
+		size_t *entries)
+{
+	const nsgif_frame *f;
+
+	if (frame >= gif->frame_count_partial) {
+		return false;
+	}
+
+	f = &gif->frames[frame];
+	if (f->info.colour_table == false) {
+		return false;
+	}
+
+	*entries = 2 << (f->flags & NSGIF_COLOUR_TABLE_SIZE_MASK);
+	nsgif__colour_table_decode(table, &gif->colour_layout,
+			*entries, gif->buf + f->colour_table_offset);
+
+	return true;
+}
+
+/* exported function documented in nsgif.h */
 const char *nsgif_strerror(nsgif_error err)
 {
 	static const char *const str[] = {

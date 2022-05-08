@@ -448,6 +448,26 @@ void nsgif_global_palette(
 		size_t *entries);
 
 /**
+ * Get the local colour palette for a frame.
+ *
+ * Frames may have no local palette. In this case they use the global palette.
+ * This function returns false if the frame has no local palette.
+ *
+ * Colours in same pixel format as \ref nsgif_bitmap_t.
+ *
+ * \param[in]  gif      The \ref nsgif_t object.
+ * \param[in]  frame    The \ref frame to get the palette for.
+ * \param[out] table    Client buffer to hold the colour table.
+ * \param[out] entries  The number of used entries in the colour table.
+ * \return true if a palette is returned, false otherwise.
+ */
+bool nsgif_local_palette(
+		const nsgif_t *gif,
+		uint32_t frame,
+		uint32_t table[NSGIF_MAX_COLOURS],
+		size_t *entries);
+
+/**
  * Configure handling of small frame delays.
  *
  * Historically people created GIFs with a tiny frame delay, however the slow
