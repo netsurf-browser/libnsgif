@@ -27,6 +27,7 @@ static struct nsgif_options {
 	const char *file;
 	const char *ppm;
 	uint64_t loops;
+	bool palette;
 	bool info;
 } nsgif_options;
 
@@ -52,6 +53,13 @@ static const struct cli_table_entry cli_entries[] = {
 		.v.u = &nsgif_options.loops,
 		.d = "Loop through decoding all frames N times. "
 		     "The default is 1."
+	},
+	{
+		.s = 'p',
+		.l = "palette",
+		.t = CLI_BOOL,
+		.v.b = &nsgif_options.palette,
+		.d = "Save palette images."
 	},
 	{
 		.p = true,
@@ -168,6 +176,65 @@ static void print_gif_frame_info(const nsgif_frame_info_t *info, uint32_t i)
 	fprintf(stdout, "      h: %"PRIu32"\n", info->rect.y1 - info->rect.y0);
 }
 
+static bool save_palette(
+		const char *img_filename,
+		const char *palette_filename,
+		const uint32_t palette[NSGIF_MAX_COLOURS],
+		size_t used_entries)
+{
+	enum {
+		SIZE = 32,
+		COUNT = 16,
+	};
+	FILE *f;
+	int size = COUNT * SIZE + 1;
+
+	f = fopen(palette_filename, "w+");
+	if (f == NULL) {
+		fprintf(stderr, "Unable to open %s for writing\n",
+				palette_filename);
+		return false;
+	}
+
+	fprintf(f, "P3\n");
+	fprintf(f, "# %s: %s\n", img_filename, palette_filename);
+	fprintf(f, "# Colour count: %zu\n", used_entries);
+	fprintf(f, "%u %u 256\n", size, size);
+
+	for (int y = 0; y < size; y++) {
+		for (int x = 0; x < size; x++) {
+			if (x % SIZE == 0 || y % SIZE == 0) {
+				fprintf(f, "0 0 0 ");
+			} else {
+				size_t offset = y / SIZE * COUNT + x / SIZE;
+				uint8_t *entry = (uint8_t *)&palette[offset];
+
+				fprintf(f, "%u %u %u ",
+						entry[0],
+						entry[1],
+						entry[2]);
+			}
+		}
+
+		fprintf(f, "\n");
+	}
+
+	fclose(f);
+
+	return true;
+}
+
+static bool save_global_palette(const nsgif_t *gif)
+{
+	uint32_t table[NSGIF_MAX_COLOURS];
+	size_t entries;
+
+	nsgif_global_palette(gif, table, &entries);
+
+	return save_palette(nsgif_options.file, "global-palette.ppm",
+			table, entries);
+}
+
 static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 {
 	nsgif_error err;
@@ -189,6 +256,9 @@ static void decode(FILE* ppm, const char *name, nsgif_t *gif)
 
 	if (nsgif_options.info == true) {
 		print_gif_info(info);
+	}
+	if (nsgif_options.palette == true && info->colour_table == true) {
+		save_global_palette(gif);
 	}
 
 	/* decode the frames */
