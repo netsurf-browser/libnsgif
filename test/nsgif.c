@@ -137,8 +137,7 @@ static uint8_t *load_file(const char *path, size_t *data_size)
 
 static void warning(const char *context, nsgif_error err)
 {
-	fprintf(stderr, "%s failed: %s\n",
-			context, nsgif_strerror(err));
+	fprintf(stderr, "%s: %s\n", context, nsgif_strerror(err));
 }
 
 static void print_gif_info(const nsgif_info_t *info)
