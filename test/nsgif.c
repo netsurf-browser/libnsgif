@@ -384,6 +384,8 @@ int main(int argc, char *argv[])
 		warning("nsgif_data_scan", err);
 	}
 
+	nsgif_data_complete(gif);
+
 	if (nsgif_options.loops == 0) {
 		nsgif_options.loops = 1;
 	}
