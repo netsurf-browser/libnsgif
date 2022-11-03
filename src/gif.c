@@ -1757,7 +1757,7 @@ static void nsgif__redraw_rect_extend(
 }
 
 static uint32_t nsgif__frame_next(
-		nsgif_t *gif,
+		const nsgif_t *gif,
 		bool partial,
 		uint32_t frame)
 {
@@ -1774,7 +1774,7 @@ static uint32_t nsgif__frame_next(
 }
 
 static nsgif_error nsgif__next_displayable_frame(
-		nsgif_t *gif,
+		const nsgif_t *gif,
 		uint32_t *frame,
 		uint32_t *delay)
 {
