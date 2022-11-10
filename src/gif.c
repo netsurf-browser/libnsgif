@@ -295,6 +295,9 @@ static void nsgif__record_frame(
 		struct nsgif *gif,
 		const uint32_t *bitmap)
 {
+	size_t pixel_bytes = sizeof(*bitmap);
+	size_t height = gif->info.height;
+	size_t width  = gif->info.width;
 	uint32_t *prev_frame;
 
 	if (gif->decoded_frame == NSGIF_FRAME_INVALID ||
@@ -310,7 +313,7 @@ static void nsgif__record_frame(
 
 	if (gif->prev_frame == NULL) {
 		prev_frame = realloc(gif->prev_frame,
-				gif->info.width * gif->info.height * 4);
+				width * height * pixel_bytes);
 		if (prev_frame == NULL) {
 			return;
 		}
@@ -318,7 +321,7 @@ static void nsgif__record_frame(
 		prev_frame = gif->prev_frame;
 	}
 
-	memcpy(prev_frame, bitmap, gif->info.width * gif->info.height * 4);
+	memcpy(prev_frame, bitmap, width * height * pixel_bytes);
 
 	gif->prev_frame  = prev_frame;
 	gif->prev_index  = gif->decoded_frame;
@@ -329,10 +332,11 @@ static nsgif_error nsgif__recover_frame(
 		uint32_t *bitmap)
 {
 	const uint32_t *prev_frame = gif->prev_frame;
-	unsigned height = gif->info.height;
-	unsigned width  = gif->info.width;
+	size_t pixel_bytes = sizeof(*bitmap);
+	size_t height = gif->info.height;
+	size_t width  = gif->info.width;
 
-	memcpy(bitmap, prev_frame, height * width * sizeof(*bitmap));
+	memcpy(bitmap, prev_frame, height * width * pixel_bytes);
 
 	return NSGIF_OK;
 }
@@ -642,9 +646,14 @@ static void nsgif__restore_bg(
 		struct nsgif_frame *frame,
 		uint32_t *bitmap)
 {
+	size_t pixel_bytes = sizeof(*bitmap);
+
 	if (frame == NULL) {
+		size_t width  = gif->info.width;
+		size_t height = gif->info.height;
+
 		memset(bitmap, NSGIF_TRANSPARENT_COLOUR,
-				gif->info.width * gif->info.height * sizeof(*bitmap));
+				width * height * pixel_bytes);
 	} else {
 		uint32_t width  = frame->info.rect.x1 - frame->info.rect.x0;
 		uint32_t height = frame->info.rect.y1 - frame->info.rect.y0;
@@ -665,7 +674,7 @@ static void nsgif__restore_bg(
 				uint32_t *scanline = bitmap + offset_x +
 						(offset_y + y) * gif->info.width;
 				memset(scanline, NSGIF_TRANSPARENT_COLOUR,
-						width * sizeof(*bitmap));
+						width * pixel_bytes);
 			}
 		} else {
 			for (uint32_t y = 0; y < height; y++) {
