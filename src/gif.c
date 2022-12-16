@@ -32,7 +32,7 @@ typedef struct nsgif_frame {
 	struct nsgif_frame_info info;
 
 	/** offset (in bytes) to the GIF frame data */
-	uint32_t frame_offset;
+	size_t frame_offset;
 	/** whether the frame has previously been decoded. */
 	bool decoded;
 	/** whether the frame is totally opaque */
@@ -102,9 +102,9 @@ struct nsgif {
 	/** pointer to GIF data */
 	const uint8_t *buf;
 	/** current index into GIF data */
-	uint32_t buf_pos;
+	size_t buf_pos;
 	/** total number of bytes of GIF data available */
-	uint32_t buf_len;
+	size_t buf_len;
 
 	/** current number of frame holders */
 	uint32_t frame_holders;
