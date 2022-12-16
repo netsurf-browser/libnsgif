@@ -1343,7 +1343,7 @@ static nsgif_error nsgif__process_frame(
 			return NSGIF_OK;
 		}
 	} else {
-		pos = (uint8_t *)(gif->buf + gif->buf_pos);
+		pos = gif->buf + gif->buf_pos;
 
 		/* Check if we've finished */
 		if (pos < end && pos[0] == NSGIF_TRAILER) {
