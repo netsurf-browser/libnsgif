@@ -73,6 +73,7 @@ struct cli_table {
 	const struct cli_table_entry *entries;
 	size_t count;
 	size_t min_positional;
+	const char *d; /**< Description of this application for help output. */
 };
 
 /**
