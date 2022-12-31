@@ -742,6 +742,12 @@ void cli_help(const struct cli_table *cli, const char *prog_name)
 
 	cli__count(cli, &count, &pcount, &max_len, &pmax_len, &phas_desc);
 
+	if (cli->d != NULL) {
+		fprintf(stderr, "\n");
+		cli__print_wrapping_string(cli->d, 0);
+		fprintf(stderr, "\n");
+	}
+
 	fprintf(stderr, "\nUsage: %s", prog_name);
 
 	if (pcount > 0) {
