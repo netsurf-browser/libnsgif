@@ -641,46 +641,90 @@ static size_t cli__terminal_width(void)
 }
 
 /**
+ * Print a wrapped string, with a given indent.
+ *
+ * The indent is assumed to already be applied for the first line of the
+ * output by the caller.
+ *
+ * \param[in] str     The string to print.
+ * \param[in] indent  The number of spaces to pad the left margin with.
+ */
+static void cli__print_wrapping_string(const char *str, size_t indent)
+{
+	size_t terminal_width = cli__terminal_width();
+	size_t avail = (indent > terminal_width) ? 0 : terminal_width - indent;
+	size_t space = avail;
+
+	while (*str != '\0') {
+		size_t word_len = strcspn(str, " \n\t");
+		if (word_len <= space || space == avail) {
+			fprintf(stderr, "%*.*s",
+					(int)word_len,
+					(int)word_len, str);
+			str += word_len;
+			if (word_len <= space) {
+				space -= word_len;
+			}
+			if (space > 0) {
+				fprintf(stderr, " ");
+				space--;
+			}
+		} else {
+			fprintf(stderr, "\n%*s", (int)indent, "");
+			space = avail;
+		}
+		str += strspn(str, " \n\t");
+	}
+}
+
+/**
  * Print an entry's description, with a given indent.
  *
  * The indent is assumed to already be applied for the first line of the
  * output by the caller.
- * 
+ *
  * \param[in] entry   The entry to print the description for.
  * \param[in] indent  The number of spaces to pad the left margin with.
  */
 static void cli__print_description(const struct cli_table_entry *entry,
 		size_t indent)
 {
-	size_t terminal_width = cli__terminal_width();
-	size_t avail = (indent > terminal_width) ? 0 : terminal_width - indent;
-	size_t space = avail;
-	const char *desc = entry->d;
-
-	if (desc != NULL) {
-		while (*desc != '\0') {
-			size_t word_len = strcspn(desc, " \n\t");
-			if (word_len <= space || space == avail) {
-				fprintf(stderr, "%*.*s",
-						(int)word_len,
-						(int)word_len, desc);
-				desc += word_len;
-				if (word_len <= space) {
-					space -= word_len;
-				}
-				if (space > 0) {
-					fprintf(stderr, " ");
-					space--;
-				}
-			} else {
-				fprintf(stderr, "\n%*s", (int)indent, "");
-				space = avail;
-			}
-			desc += strspn(desc, " \n\t");
-		}
+	if (entry->d != NULL) {
+		cli__print_wrapping_string(entry->d, indent);
 	}
 
 	fprintf(stderr, "\n");
+
+	if (entry->t == CLI_ENUM) {
+		size_t max_len = 0;
+
+		for (const struct cli_str_val *e = entry->v.e.desc;
+				e->str != NULL; e++) {
+			size_t len = strlen(e->str);
+			if (max_len < len) {
+				max_len = len;
+			}
+		}
+
+		fprintf(stderr, "\n");
+
+		for (const struct cli_str_val *e = entry->v.e.desc;
+				e->str != NULL; e++) {
+			fprintf(stderr, "        ");
+
+			if (e->d == NULL || e->d[0] == '\0') {
+				fprintf(stderr, "%s\n",
+						e->str);
+			} else {
+				fprintf(stderr, "%-*s - ",
+						(int)(max_len),
+						e->str);
+				cli__print_wrapping_string(e->d,
+						8 + max_len + 3);
+				fprintf(stderr, "\n");
+			}
+		}
+	}
 }
 
 /* Documented in cli.h */
