@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: ISC
  *
- * Copyright (C) 2021 Michael Drake <tlsa@netsurf-browser.org>
+ * Copyright (C) 2021-2022 Michael Drake <tlsa@netsurf-browser.org>
  */
 
 /**
@@ -51,6 +51,7 @@ struct cli_table_entry {
 	const char *l; /**< Long argument name. */
 	const char  s; /**< Short flag name. (Non-positional arguments.) */
 	bool p; /**< Whether the argument is a positional argument. */
+	bool no_pos; /**< When present, no positional arguments are required. */
 	enum cli_arg_type t; /**< Argument type. */
 	union {
 		bool *b;        /**< Location to store \ref CLI_BOOL value. */

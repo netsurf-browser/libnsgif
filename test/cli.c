@@ -1,7 +1,7 @@
 /*
  * SPDX-License-Identifier: ISC
  *
- * Copyright (C) 2021 Michael Drake <tlsa@netsurf-browser.org>
+ * Copyright (C) 2021-2022 Michael Drake <tlsa@netsurf-browser.org>
  */
 
 /**
@@ -16,6 +16,14 @@
 #include <string.h>
 
 #include "cli.h"
+
+/**
+ * CLI parsing context.
+ */
+struct cli_ctx {
+	const struct cli_table *cli; /**< Client CLI spec. */
+	bool no_pos; /**< Have an argument that negates min_positional. */
+};
 
 /**
  * Check whether a CLI argument type should have a numerical value.
@@ -289,13 +297,13 @@ static bool cli__handle_arg_value(const struct cli_table_entry *entry,
 /**
  * Parse a flags argument.
  *
- * \param[in]  cli      Client command line interface specification.
+ * \param[in]  ctx      Command line interface parsing context.
  * \param[in]  argc     Number of command line arguments.
  * \param[in]  argv     String vector containing command line arguments.
  * \param[out] arg_pos  Current position in argv, updated on exit.
  * \return true on success, or false otherwise.
  */
-static bool cli__parse_short(const struct cli_table *cli,
+static bool cli__parse_short(struct cli_ctx *ctx,
 		int argc, const char **argv, int *arg_pos)
 {
 	const char *arg = argv[*arg_pos];
@@ -308,9 +316,13 @@ static bool cli__parse_short(const struct cli_table *cli,
 	while (arg[pos] != '\0') {
 		const struct cli_table_entry *entry;
 
-		entry = cli__lookup_short(cli, arg[pos]);
+		entry = cli__lookup_short(ctx->cli, arg[pos]);
 		if (entry == NULL) {
 			return false;
+		}
+
+		if (entry->no_pos) {
+			ctx->no_pos = true;
 		}
 
 		if (entry->t == CLI_BOOL) {
@@ -364,13 +376,13 @@ static const struct cli_table_entry *cli__lookup_long(
 /**
  * Parse a long argument.
  *
- * \param[in]  cli      Client command line interface specification.
+ * \param[in]  ctx      Command line interface parsing context.
  * \param[in]  argc     Number of command line arguments.
  * \param[in]  argv     String vector containing command line arguments.
  * \param[out] arg_pos  Current position in argv, updated on exit.
  * \return true on success, or false otherwise.
  */
-static bool cli__parse_long(const struct cli_table *cli,
+static bool cli__parse_long(struct cli_ctx *ctx,
 		int argc, const char **argv, int *arg_pos)
 {
 	const struct cli_table_entry *entry;
@@ -382,9 +394,13 @@ static bool cli__parse_long(const struct cli_table *cli,
 		return false;
 	}
 
-	entry = cli__lookup_long(cli, arg, &pos);
+	entry = cli__lookup_long(ctx->cli, arg, &pos);
 	if (entry == NULL) {
 		return false;
+	}
+
+	if (entry->no_pos) {
+		ctx->no_pos = true;
 	}
 
 	if (entry->t == CLI_BOOL) {
@@ -567,6 +583,9 @@ static inline bool cli__is_negative(const char *arg)
 bool cli_parse(const struct cli_table *cli, int argc, const char **argv)
 {
 	size_t pos_count = 0;
+	struct cli_ctx ctx = {
+		.cli = cli,
+	};
 	enum {
 		ARG_PROG_NAME,
 		ARG_FIRST,
@@ -579,9 +598,9 @@ bool cli_parse(const struct cli_table *cli, int argc, const char **argv)
 
 		if (arg[0] == '-') {
 			if (arg[1] == '-') {
-				ret = cli__parse_long(cli, argc, argv, &i);
+				ret = cli__parse_long(&ctx, argc, argv, &i);
 			} else {
-				ret = cli__parse_short(cli, argc, argv, &i);
+				ret = cli__parse_short(&ctx, argc, argv, &i);
 				if (ret != true) {
 					if (cli__is_negative(argv[i])) {
 						pos_inc = 1;
@@ -603,7 +622,7 @@ bool cli_parse(const struct cli_table *cli, int argc, const char **argv)
 		pos_count += pos_inc;
 	}
 
-	if (pos_count < cli->min_positional) {
+	if (ctx.no_pos == false && pos_count < cli->min_positional) {
 		fprintf(stderr, "Insufficient positional arguments found.\n");
 		return false;
 	}
