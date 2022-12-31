@@ -22,6 +22,7 @@
  */
 struct cli_ctx {
 	const struct cli_table *cli; /**< Client CLI spec. */
+	size_t pos_count; /**< The number of positional arguments found. */
 	bool no_pos; /**< Have an argument that negates min_positional. */
 };
 
@@ -119,6 +120,8 @@ static bool cli__parse_value_enum(
 			return true;
 		}
 	}
+
+	fprintf(stderr, "ERROR: Unknown enum value '%s'.\n", str);
 
 	return false;
 }
@@ -294,6 +297,73 @@ static bool cli__handle_arg_value(const struct cli_table_entry *entry,
 	return true;
 }
 
+static inline bool cli__is_negative(const char *arg)
+{
+	int64_t i;
+	size_t pos = 0;
+
+	return cli__parse_value_int(arg, &i, &pos)
+			&& pos == strlen(arg)
+			&& i < 0;
+}
+
+/**
+ * Parse a positional argument according to the given CLI spec entry.
+ *
+ * \param[in] ctx    Command line interface parsing context.
+ * \param[in] entry  Client command line interface argument specification.
+ * \param[in] arg    Argument to parse.
+ * \return true on success, or false otherwise.
+ */
+static bool cli__parse_positional_entry(struct cli_ctx *ctx,
+		const struct cli_table_entry *entry,
+		const char *arg)
+{
+	size_t pos = 0;
+	bool ret;
+
+	ret = cli__parse_value(entry, arg, &pos);
+	if (ret != true) {
+		return ret;
+	} else if (arg[pos] != '\0') {
+		fprintf(stderr, "Failed to parse value '%s' for arg '%s'\n",
+				arg, entry->l);
+		return false;
+	}
+
+	ctx->pos_count++;
+	return true;
+}
+
+/**
+ * Parse a positional argument.
+ *
+ * \param[in] ctx    Command line interface parsing context.
+ * \param[in] arg    Argument to parse.
+ * \param[in] count  Number of positional arguments parsed already.
+ * \return true on success, or false otherwise.
+ */
+static bool cli__parse_positional(struct cli_ctx *ctx,
+		const char *arg)
+{
+	const struct cli_table *cli = ctx->cli;
+	size_t positional = 0;
+
+	for (size_t i = 0; i < cli->count; i++) {
+		if (cli__entry_is_positional(&cli->entries[i])) {
+			if (positional == ctx->pos_count) {
+				return cli__parse_positional_entry(ctx,
+						&cli->entries[i], arg);
+			}
+
+			positional++;
+		}
+	}
+
+	fprintf(stderr, "Unexpected positional argument: '%s'\n", arg);
+	return false;
+}
+
 /**
  * Parse a flags argument.
  *
@@ -318,6 +388,9 @@ static bool cli__parse_short(struct cli_ctx *ctx,
 
 		entry = cli__lookup_short(ctx->cli, arg[pos]);
 		if (entry == NULL) {
+			if (cli__is_negative(argv[pos])) {
+				return cli__parse_positional(ctx, argv[pos]);
+			}
 			return false;
 		}
 
@@ -424,60 +497,6 @@ static bool cli__parse_long(struct cli_ctx *ctx,
 }
 
 /**
- * Parse a positional argument according to the given CLI spec entry.
- *
- * \param[in] entry  Client command line interface argument specification.
- * \param[in] arg    Argument to parse.
- * \return true on success, or false otherwise.
- */
-static bool cli__parse_positional_entry(
-		const struct cli_table_entry *entry,
-		const char *arg)
-{
-	size_t pos = 0;
-	bool ret;
-
-	ret = cli__parse_value(entry, arg, &pos);
-	if (ret != true) {
-		return ret;
-	} else if (arg[pos] != '\0') {
-		fprintf(stderr, "Failed to parse value '%s' for arg '%s'\n",
-				arg, entry->l);
-		return false;
-	}
-
-	return true;
-}
-
-/**
- * Parse a positional argument.
- *
- * \param[in] cli    Client command line interface specification.
- * \param[in] arg    Argument to parse.
- * \param[in] count  Number of positional arguments parsed already.
- * \return true on success, or false otherwise.
- */
-static bool cli__parse_positional(const struct cli_table *cli,
-		const char *arg, size_t count)
-{
-	size_t positional = 0;
-
-	for (size_t i = 0; i < cli->count; i++) {
-		if (cli__entry_is_positional(&cli->entries[i])) {
-			if (positional == count) {
-				return cli__parse_positional_entry(
-						&cli->entries[i], arg);
-			}
-
-			positional++;
-		}
-	}
-
-	fprintf(stderr, "Unexpected positional argument: '%s'\n", arg);
-	return false;
-}
-
-/**
  * Get the string to indicate type of value expected for an argument.
  *
  * \param[in] type  The argument type.
@@ -569,20 +588,9 @@ static void cli__count(const struct cli_table *cli,
 	}
 }
 
-static inline bool cli__is_negative(const char *arg)
-{
-	int64_t i;
-	size_t pos = 0;
-
-	return cli__parse_value_int(arg, &i, &pos)
-			&& pos == strlen(arg)
-			&& i < 0;
-}
-
 /* Documented in cli.h */
 bool cli_parse(const struct cli_table *cli, int argc, const char **argv)
 {
-	size_t pos_count = 0;
 	struct cli_ctx ctx = {
 		.cli = cli,
 	};
@@ -593,7 +601,6 @@ bool cli_parse(const struct cli_table *cli, int argc, const char **argv)
 
 	for (int i = ARG_FIRST; i < argc; i++) {
 		const char *arg = argv[i];
-		size_t pos_inc = 0;
 		bool ret;
 
 		if (arg[0] == '-') {
@@ -601,28 +608,17 @@ bool cli_parse(const struct cli_table *cli, int argc, const char **argv)
 				ret = cli__parse_long(&ctx, argc, argv, &i);
 			} else {
 				ret = cli__parse_short(&ctx, argc, argv, &i);
-				if (ret != true) {
-					if (cli__is_negative(argv[i])) {
-						pos_inc = 1;
-						ret = cli__parse_positional(
-								cli, argv[i],
-								pos_count);
-					}
-				}
 			}
 		} else {
-			pos_inc = 1;
-			ret = cli__parse_positional(cli, argv[i], pos_count);
+			ret = cli__parse_positional(&ctx, argv[i]);
 		}
 
 		if (ret != true) {
 			return ret;
 		}
-
-		pos_count += pos_inc;
 	}
 
-	if (ctx.no_pos == false && pos_count < cli->min_positional) {
+	if (ctx.no_pos == false && ctx.pos_count < cli->min_positional) {
 		fprintf(stderr, "Insufficient positional arguments found.\n");
 		return false;
 	}
