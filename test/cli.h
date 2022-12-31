@@ -34,13 +34,16 @@ enum cli_arg_type {
 	CLI_STRING, /**< Has string value. */
 };
 
+/** Enum value descriptor. */
 struct cli_str_val {
-	const char *str;
-	int64_t val;
+	const char *str; /**< String for the enum value name. */
+	int64_t val;     /**< The value for this string. */
+	const char *d;   /**< Description of this value for help output. */
 };
 
+/** Enum data. */
 struct cli_enum {
-	const struct cli_str_val *desc;
+	const struct cli_str_val *desc; /**< Array describing enum values. */
 	int64_t *e; /**< Location to store \ref CLI_ENUM value. */
 };
 
@@ -58,9 +61,9 @@ struct cli_table_entry {
 		int64_t *i;     /**< Location to store \ref CLI_INT value. */
 		uint64_t *u;    /**< Location to store \ref CLI_UINT value. */
 		const char **s; /**< Location to store \ref CLI_STRING value. */
-		struct cli_enum e;
+		struct cli_enum e; /**< \ref CLI_ENUM value details. */
 	} v; /**< Where to store type-specific values. */
-	const char *d; /**< Description. */
+	const char *d; /**< Description of this argument for help output. */
 };
 
 /**
