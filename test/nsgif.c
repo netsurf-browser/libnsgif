@@ -29,15 +29,17 @@ static struct nsgif_options {
 	uint64_t loops;
 	bool palette;
 	bool info;
+	bool help;
 } nsgif_options;
 
 static const struct cli_table_entry cli_entries[] = {
 	{
-		.s = 'm',
-		.l = "ppm",
-		.t = CLI_STRING,
-		.v.s = &nsgif_options.ppm,
-		.d = "Convert frames to PPM image at given path."
+		.s = 'h',
+		.l = "help",
+		.t = CLI_BOOL,
+		.no_pos = true,
+		.v.b = &nsgif_options.help,
+		.d = "Print this text.",
 	},
 	{
 		.s = 'i',
@@ -53,6 +55,13 @@ static const struct cli_table_entry cli_entries[] = {
 		.v.u = &nsgif_options.loops,
 		.d = "Loop through decoding all frames N times. "
 		     "The default is 1."
+	},
+	{
+		.s = 'm',
+		.l = "ppm",
+		.t = CLI_STRING,
+		.v.s = &nsgif_options.ppm,
+		.d = "Convert frames to PPM image at given path."
 	},
 	{
 		.s = 'p',
@@ -356,6 +365,11 @@ int main(int argc, char *argv[])
 	if (!cli_parse(&cli, argc, (void *)argv)) {
 		cli_help(&cli, argv[0]);
 		return EXIT_FAILURE;
+	}
+
+	if (nsgif_options.help) {
+		cli_help(&cli, argv[0]);
+		return EXIT_SUCCESS;
 	}
 
 	if (nsgif_options.ppm != NULL) {
