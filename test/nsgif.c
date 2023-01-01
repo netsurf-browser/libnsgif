@@ -74,6 +74,7 @@ const struct cli_table cli = {
 	.entries = cli_entries,
 	.count = (sizeof(cli_entries))/(sizeof(*cli_entries)),
 	.min_positional = 1,
+	.d = "NSGIF - A utility for inspecting and decoding GIFs with libnsgif",
 };
 
 static void *bitmap_create(int width, int height)
