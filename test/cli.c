@@ -340,7 +340,6 @@ static bool cli__parse_positional_entry(struct cli_ctx *ctx,
  *
  * \param[in] ctx    Command line interface parsing context.
  * \param[in] arg    Argument to parse.
- * \param[in] count  Number of positional arguments parsed already.
  * \return true on success, or false otherwise.
  */
 static bool cli__parse_positional(struct cli_ctx *ctx,

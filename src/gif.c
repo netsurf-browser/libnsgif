@@ -1068,7 +1068,7 @@ static nsgif_error nsgif__parse_image_descriptor(
  * \param[in] colour_table          The colour table to populate.
  * \param[in] layout                la.
  * \param[in] colour_table_entries  The number of colour table entries.
- * \param[in] Data                  Raw colour table data.
+ * \param[in] data                  Raw colour table data.
  */
 static void nsgif__colour_table_decode(
 		uint32_t colour_table[NSGIF_MAX_COLOURS],
@@ -1097,11 +1097,13 @@ static void nsgif__colour_table_decode(
 /**
  * Extract a GIF colour table into a LibNSGIF colour table buffer.
  *
- * \param[in] gif                   The gif object we're decoding.
- * \param[in] colour_table          The colour table to populate.
- * \param[in] colour_table_entries  The number of colour table entries.
- * \param[in] pos                   Current position in data, updated on exit.
- * \param[in] decode                Whether to decode the colour table.
+ * \param[in]  colour_table          The colour table to populate.
+ * \param[in]  layout                The target pixel format to decode to.
+ * \param[in]  colour_table_entries  The number of colour table entries.
+ * \param[in]  data                  Current position in data.
+ * \param[in]  data_len              The available length of `data`.
+ * \param[out] used                  Number of colour table bytes read.
+ * \param[in]  decode                Whether to decode the colour table.
  * \return NSGIF_OK on success, appropriate error otherwise.
  */
 static inline nsgif_error nsgif__colour_table_extract(
