@@ -27,7 +27,8 @@ ifneq ($(BUILD),i586-pc-haiku)
   WARNFLAGS := $(WARNFLAGS) -Werror
 endif
 
-CFLAGS := \
+CFLAGS := -DNSGIF_NAME=$(COMPONENT) \
+	-DNSGIF_VERSION=$(COMPONENT_VERSION) \
 	-I$(CURDIR)/include/ -I$(CURDIR)/src \
 	$(WARNFLAGS) $(CFLAGS)
 ifneq ($(GCCVER),2)
