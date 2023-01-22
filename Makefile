@@ -27,7 +27,7 @@ ifneq ($(BUILD),i586-pc-haiku)
   WARNFLAGS := $(WARNFLAGS) -Werror
 endif
 
-CFLAGS := -D_BSD_SOURCE -D_DEFAULT_SOURCE \
+CFLAGS := \
 	-I$(CURDIR)/include/ -I$(CURDIR)/src \
 	$(WARNFLAGS) $(CFLAGS)
 ifneq ($(GCCVER),2)
