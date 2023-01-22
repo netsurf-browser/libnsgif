@@ -429,7 +429,8 @@ typedef struct nsgif_frame_info {
 	bool transparency;
 	/** whether the frame has a local colour table */
 	bool local_palette;
-
+	/** whether the frame is interlaced */
+	bool interlaced;
 	/** Disposal method for previous frame; affects plotting */
 	uint8_t disposal;
 	/** delay (in cs) before animating the frame */
