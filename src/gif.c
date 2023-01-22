@@ -600,20 +600,15 @@ static inline nsgif_error nsgif__decode(
 		const uint8_t *data,
 		uint32_t *restrict frame_data)
 {
-	enum {
-		GIF_MASK_INTERLACE = 0x40,
-	};
-
 	nsgif_error ret;
 	uint32_t width  = frame->info.rect.x1 - frame->info.rect.x0;
 	uint32_t height = frame->info.rect.y1 - frame->info.rect.y0;
 	uint32_t offset_x = frame->info.rect.x0;
 	uint32_t offset_y = frame->info.rect.y0;
-	uint32_t interlace = frame->flags & GIF_MASK_INTERLACE;
 	uint32_t transparency_index = frame->transparency_index;
 	uint32_t *restrict colour_table = gif->colour_table;
 
-	if (interlace == false && offset_x == 0 &&
+	if (frame->info.interlaced == false && offset_x == 0 &&
 			width == gif->info.width &&
 			width == gif->rowspan) {
 		ret = nsgif__decode_simple(gif, height, offset_y,
@@ -621,7 +616,7 @@ static inline nsgif_error nsgif__decode(
 				frame_data, colour_table);
 	} else {
 		ret = nsgif__decode_complex(gif, width, height,
-				offset_x, offset_y, interlace,
+				offset_x, offset_y, frame->info.interlaced,
 				data, transparency_index,
 				frame_data, colour_table);
 	}
@@ -1020,6 +1015,7 @@ static nsgif_error nsgif__parse_image_descriptor(
 	enum {
 		NSGIF_IMAGE_DESCRIPTOR_LEN = 10u,
 		NSGIF_IMAGE_SEPARATOR      = 0x2Cu,
+		NSGIF_MASK_INTERLACE       = 0x40u,
 	};
 
 	assert(gif != NULL);
@@ -1046,6 +1042,8 @@ static nsgif_error nsgif__parse_image_descriptor(
 		frame->info.rect.y0 = y;
 		frame->info.rect.x1 = x + w;
 		frame->info.rect.y1 = y + h;
+
+		frame->info.interlaced = frame->flags & NSGIF_MASK_INTERLACE;
 
 		/* Allow first frame to grow image dimensions. */
 		if (gif->info.frame_count == 0) {
