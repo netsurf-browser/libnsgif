@@ -80,11 +80,6 @@ typedef enum {
 	NSGIF_ERR_DATA_FRAME,
 
 	/**
-	 * Too many frames.
-	 */
-	NSGIF_ERR_FRAME_COUNT,
-
-	/**
 	 * Unexpected end of GIF source data.
 	 */
 	NSGIF_ERR_END_OF_DATA,
