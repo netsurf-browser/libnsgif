@@ -21,6 +21,9 @@
 #include "cli.h"
 #include "cli.c"
 
+#define STR_VAL(_S) STR(_S)
+#define STR(_S) #_S
+
 #define BYTES_PER_PIXEL 4
 
 static struct nsgif_options {
@@ -28,6 +31,7 @@ static struct nsgif_options {
 	const char *ppm;
 	uint64_t loops;
 	bool palette;
+	bool version;
 	bool info;
 	bool help;
 } nsgif_options;
@@ -69,6 +73,14 @@ static const struct cli_table_entry cli_entries[] = {
 		.t = CLI_BOOL,
 		.v.b = &nsgif_options.palette,
 		.d = "Save palette images."
+	},
+	{
+		.s = 'V',
+		.l = "version",
+		.t = CLI_BOOL,
+		.no_pos = true,
+		.v.b = &nsgif_options.version,
+		.d = "Print version number."
 	},
 	{
 		.p = true,
@@ -369,6 +381,11 @@ int main(int argc, char *argv[])
 
 	if (nsgif_options.help) {
 		cli_help(&cli, argv[0]);
+		return EXIT_SUCCESS;
+	}
+
+	if (nsgif_options.version) {
+		printf("%s %s\n", STR_VAL(NSGIF_NAME), STR_VAL(NSGIF_VERSION));
 		return EXIT_SUCCESS;
 	}
 
