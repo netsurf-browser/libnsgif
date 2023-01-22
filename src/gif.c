@@ -1349,13 +1349,6 @@ static nsgif_error nsgif__process_frame(
 		if (pos < end && pos[0] == NSGIF_TRAILER) {
 			return NSGIF_OK;
 		}
-
-		/* We could theoretically get some junk data that gives us
-		 * millions of frames, so we ensure that we don't have a
-		 * silly number. */
-		if (frame_idx > 4096) {
-			return NSGIF_ERR_FRAME_COUNT;
-		}
 	}
 
 	ret = nsgif__parse_frame_extensions(gif, frame, &pos, !decode);
@@ -2051,7 +2044,6 @@ const char *nsgif_strerror(nsgif_error err)
 		[NSGIF_ERR_DATA]          = "Invalid source data",
 		[NSGIF_ERR_BAD_FRAME]     = "Requested frame does not exist",
 		[NSGIF_ERR_DATA_FRAME]    = "Invalid frame data",
-		[NSGIF_ERR_FRAME_COUNT]   = "Excessive number of frames",
 		[NSGIF_ERR_END_OF_DATA]   = "Unexpected end of GIF source data",
 		[NSGIF_ERR_DATA_COMPLETE] = "Can't add data to completed GIF",
 		[NSGIF_ERR_FRAME_DISPLAY] = "Frame can't be displayed",
