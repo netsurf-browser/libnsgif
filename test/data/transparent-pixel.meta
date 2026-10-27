@@ -1,0 +1,4 @@
+title: Transparent index draws as transparent
+description: 2x1 frame with transparency flag set and transparent index 0
+description: (red); it draws index 0 then index 1 (green). Expect
+description: transparent,green.

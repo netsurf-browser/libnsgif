@@ -1,0 +1,4 @@
+title: First LZW sub-block is 59 bytes long
+description: 8x12 checkerboard whose first LZW sub-block is 59 bytes long
+description: (0x3b, the trailer byte).
+fixed-by: a4f26c7

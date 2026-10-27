@@ -1,0 +1,11 @@
+P3
+# test/data/netscape-loop.gif
+# width                1
+# height               1
+# frame_count          2
+# loop_max             3
+1 2 256
+# frame 0:
+255 0 0
+# frame 1:
+0 255 0

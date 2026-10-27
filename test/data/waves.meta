@@ -1,0 +1,3 @@
+title: Animated GIF smoke test
+description: 10-frame 268x86 animation. Checks that a real-world animated GIF
+description: scans and decodes without errors.

@@ -1,0 +1,4 @@
+title: No global or local palette
+description: 3x1 frame with no colour tables, drawing indices 0, 1 and 2. The
+description: default palette has black and white as entries 0 and 1, and the
+description: rest transparent. Expect black,white,transparent.

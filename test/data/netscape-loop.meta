@@ -1,0 +1,4 @@
+title: NETSCAPE2.0 loop count
+description: Two frames with a NETSCAPE2.0 loop count of 2, meaning 3 plays in
+description: total, so loop_max is 3.
+fixed-by: 7fe56e6 c77c518

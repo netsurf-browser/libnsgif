@@ -1,0 +1,7 @@
+title: Restore background, then restore previous
+description: 3x1, white background. Frame 1 (green at x=1) has disposal 2
+description: (restore background), frame 2 (blue at x=2) has disposal 3
+description: (restore previous). The canvas recorded for frame 2 must have frame
+description: 1 already cleared to background, so frame 3 (yellow at x=0) shows
+description: yellow,white,red.
+fixed-by: 3665353

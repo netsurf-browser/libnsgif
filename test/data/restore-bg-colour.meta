@@ -1,0 +1,4 @@
+title: Restore background uses the exact colour
+description: Frame 0 has disposal 2 (restore background); the background is
+description: 0x12,0x34,0x56. Its area must be filled with that exact colour.
+fixed-by: 41f33c7

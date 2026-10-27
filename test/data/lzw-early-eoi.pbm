@@ -1,0 +1,11 @@
+P1
+# test/data/lzw-early-eoi.gif
+# width                4
+# height               1
+# frame_count          2
+# loop_max             1
+4 2
+# frame 0:
+0 0 1 1
+# frame 1:
+0 0 1 1

@@ -1,0 +1,4 @@
+title: Only the first frame grows the canvas
+description: 1x1 screen. Frame 0 is 2x1, so the canvas grows to 2x1; frame 1
+description: goes beyond that and must not grow it again.
+fixed-by: 6d39a8f

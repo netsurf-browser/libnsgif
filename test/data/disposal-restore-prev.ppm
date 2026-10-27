@@ -1,0 +1,15 @@
+P3
+# test/data/disposal-restore-prev.gif
+# width                3
+# height               1
+# frame_count          4
+# loop_max             1
+3 4 256
+# frame 0:
+255 0 0 255 0 0 255 0 0
+# frame 1:
+255 0 0 0 255 0 255 0 0
+# frame 2:
+255 0 0 0 255 0 0 0 255
+# frame 3:
+255 255 255 0 255 0 255 0 0

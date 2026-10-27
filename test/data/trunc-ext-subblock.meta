@@ -1,0 +1,4 @@
+title: Extension sub-block runs past the end of the file
+description: A valid frame, then a comment extension whose sub-block length
+description: runs past the end of the file. Expect the one frame, no over-read.
+fixed-by: 4198255

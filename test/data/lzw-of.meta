@@ -1,0 +1,7 @@
+title: Unset LZW code overflows the decode stack
+description: 27x4 frame, LZW minimum code size 4. The first code after the
+description: clear code is 24, but the next free table entry is 18, so it
+description: refers to an entry that has not been set. The frame decode must
+description: fail with "Invalid frame data".
+fixed-by: a268d2c
+stderr: Frame 0: nsgif_decode_frame failed: Invalid frame data

@@ -1,0 +1,5 @@
+title: Frame partly off the canvas is clipped
+description: 2x2 canvas. Frame 1 is a 2x2 at (1,1), mostly off-canvas, with
+description: disposal 2 (restore background). Only its on-canvas pixel is
+description: drawn and then cleared to background. No buffer overflow.
+fixed-by: 152c4a7 696b29f 6d39a8f

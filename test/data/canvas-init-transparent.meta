@@ -1,0 +1,5 @@
+title: Uncovered canvas starts transparent
+description: 2x1 canvas, background index set to white, single 1x1 red frame at
+description: x=0. The pixel that's not covered should start transparent, not the
+description: background colour.
+fixed-by: 480304f

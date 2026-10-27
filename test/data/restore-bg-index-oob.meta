@@ -1,0 +1,5 @@
+title: Background index outside the palette
+description: Background index 200, but the global palette has 4 entries. Frame
+description: 0 has disposal 2 (restore background), so its area clears to
+description: transparent.
+fixed-by: 41f33c7 5f64dc9

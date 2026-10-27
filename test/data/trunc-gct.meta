@@ -1,0 +1,6 @@
+title: File ends inside the global colour table
+description: The file ends one byte short of the global colour table. The scan
+description: must fail with "end of data" and decode no frames.
+fixed-by: f4ccd56
+stderr: nsgif_data_scan: Unexpected end of GIF source data
+stderr: nsgif_frame_prepare: Frame can't be displayed

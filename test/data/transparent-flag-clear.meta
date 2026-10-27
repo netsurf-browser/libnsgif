@@ -1,0 +1,4 @@
+title: Transparent index unused without the transparency flag
+description: Frame 0 draws green,red. Frame 1's GCE has transparent index 0
+description: (red) but the transparency flag clear, and draws index 0 then
+description: index 1 (green). Expect red,green.

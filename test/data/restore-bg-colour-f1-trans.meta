@@ -1,0 +1,4 @@
+title: Restore background colour, frame 1 transparent
+description: Frame 0 has disposal 2 (restore background); the background is
+description: 0x12,0x34,0x56. Frame 1's GCE sets the transparency flag, with
+description: unused index 3. Expect x=0 to use the exact background colour.

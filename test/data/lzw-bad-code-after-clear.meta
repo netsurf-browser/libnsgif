@@ -1,0 +1,6 @@
+title: Non-literal LZW code after a clear code
+description: The first code after a clear code is not a literal (it equals the
+description: next table entry). The frame decode must fail with "Invalid frame
+description: data".
+fixed-by: f9b8f11
+stderr: Frame 0: nsgif_decode_frame failed: Invalid frame data

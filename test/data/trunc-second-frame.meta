@@ -1,0 +1,5 @@
+title: Second frame cut off on the complex path
+description: A white 4x1 frame, then a 3x1 frame (not full width, so the
+description: complex decode path) cut off after its first pixel. Frame 1 shows
+description: red,white,white,white.
+fixed-by: f429a4f 5cf46c9

@@ -1,0 +1,4 @@
+title: Images without Graphic Control Extensions
+description: Two images with no Graphic Control Extension between them. Each
+description: image is its own frame.
+fixed-by: c45ff6e

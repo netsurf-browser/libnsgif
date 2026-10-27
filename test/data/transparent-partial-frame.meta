@@ -1,0 +1,4 @@
+title: Transparent index in a frame narrower than the canvas
+description: 3x1 canvas. Frame 0 draws green,green,red. Frame 1 is 2x1 at x=1
+description: with the transparency flag set and transparent index 0 (red), and
+description: draws index 0 then index 1 (green). Expect green,green,green.

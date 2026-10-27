@@ -1,0 +1,5 @@
+title: Restore background with local palettes
+description: Frames 0 and 1 each have their own local palette; frame 0 has
+description: disposal 2 (restore background). Expect a white background
+description: (global palette) at x=0 and frame 1's own blue at x=1.
+fixed-by: 41f33c7

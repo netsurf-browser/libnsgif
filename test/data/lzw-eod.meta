@@ -1,0 +1,6 @@
+title: Last LZW code ends at the end of a sub-block
+description: 3x1 frame, LZW minimum code size 7, so codes are 8 bits. One
+description: 4-byte sub-block holds clear, 1, 2, 3 with no EOI, so the last
+description: code ends exactly at the end of the sub-block. Expect
+description: red,green,blue.
+fixed-by: 7149b17 2255b2f

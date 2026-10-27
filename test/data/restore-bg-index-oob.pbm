@@ -1,0 +1,11 @@
+P1
+# test/data/restore-bg-index-oob.gif
+# width                2
+# height               1
+# frame_count          2
+# loop_max             1
+2 2
+# frame 0:
+0 0
+# frame 1:
+1 0

@@ -1,0 +1,6 @@
+title: LZW code spans three sub-blocks
+description: 3x1 frame, LZW minimum code size 10, so codes are 11 bits. The
+description: codes clear, 0, 1, 2, EOI are split into sub-blocks of 3, 1 and 3
+description: bytes. The third code (green) straddles all three sub-blocks.
+description: Expect red,green,blue.
+fixed-by: 34f3a9a

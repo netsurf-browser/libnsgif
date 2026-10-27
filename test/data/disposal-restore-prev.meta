@@ -1,0 +1,5 @@
+title: Restore previous disposal
+description: 3x1. Frame 0: red row. Frame 1: green at x=1. Frame 2: blue at
+description: x=2, disposal 3 (restore previous). Frame 3: white at x=0. Frame 3
+description: must show white,green,red.
+fixed-by: 7fe56e6 8442a27

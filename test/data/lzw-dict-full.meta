@@ -1,0 +1,5 @@
+title: Decoding continues once the dictionary is full
+description: 64x66 image made only of literal codes and never cleared, so the
+description: 4096-entry dictionary fills up and decoding must carry on with
+description: 12-bit codes.
+fixed-by: f9797e4

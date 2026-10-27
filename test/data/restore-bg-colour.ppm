@@ -1,0 +1,11 @@
+P3
+# test/data/restore-bg-colour.gif
+# width                2
+# height               1
+# frame_count          2
+# loop_max             1
+2 2 256
+# frame 0:
+255 0 0 255 0 0
+# frame 1:
+18 52 86 0 255 0
