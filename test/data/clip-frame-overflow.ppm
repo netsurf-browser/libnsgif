@@ -1,0 +1,16 @@
+P3
+# test/data/clip-frame-overflow.gif
+# width                2
+# height               2
+# frame_count          3
+# loop_max             1
+2 6 256
+# frame 0:
+255 0 0 255 0 0
+255 0 0 255 0 0
+# frame 1:
+255 0 0 255 0 0
+255 0 0 0 255 0
+# frame 2:
+0 0 255 255 0 0
+255 0 0 255 255 255

@@ -1,0 +1,6 @@
+title: Final frame cut off part-way through its data
+description: Single 6x1 frame. The first LZW sub-block holds four pixels; the
+description: second sub-block runs past the end of the file and there is no
+description: trailer. Expect the four pixels, rest transparent.
+fixed-by: 2247ced f429a4f 5cf46c9 2255b2f
+stderr: nsgif_data_scan: Unexpected end of GIF source data

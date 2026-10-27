@@ -1,0 +1,4 @@
+title: Restore previous on the first frame
+description: Frame 0 has disposal 3 (restore previous), so it restores to the
+description: blank canvas: frame 1 shows transparent,green.
+fixed-by: abc6a95

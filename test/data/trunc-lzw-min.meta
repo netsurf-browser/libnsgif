@@ -1,0 +1,4 @@
+title: File ends before the LZW minimum code size
+description: A valid frame, then a complete image descriptor with nothing after
+description: it, not even the LZW minimum code size. Expect the one frame.
+fixed-by: 5446c3c

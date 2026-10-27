@@ -1,0 +1,4 @@
+title: Full-width frame clipped
+description: 2x2 canvas. Frame 1 is full width at (0,1) but 2 rows tall, so it
+description: must be clipped to one row.
+fixed-by: 75ed385

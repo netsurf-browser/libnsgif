@@ -1,0 +1,4 @@
+title: File ends inside an image descriptor
+description: A valid frame, then a file that ends part-way through a second
+description: image descriptor. Expect the one frame.
+fixed-by: 5446c3c 4360a76

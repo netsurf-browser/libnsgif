@@ -1,0 +1,4 @@
+title: Transparent index shows the frame below
+description: Frame 0 draws green,red. Frame 1 has the transparency flag set
+description: with transparent index 0 (red) and draws index 0 then index 1
+description: (green). Expect green,green.

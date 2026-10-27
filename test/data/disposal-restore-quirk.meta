@@ -1,0 +1,5 @@
+title: Disposal value 4 means restore previous
+description: Same as disposal 3 (restore previous), but frame 2 uses disposal 4,
+description: (restore previous quirk) which buggy encoders write instead of
+description: restore previous.
+fixed-by: 7fe56e6

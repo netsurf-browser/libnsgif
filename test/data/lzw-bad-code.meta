@@ -1,0 +1,4 @@
+title: LZW code beyond the next table entry
+description: LZW data contains a code larger than the next table entry. The
+description: frame decode must fail with "Invalid frame data".
+stderr: Frame 0: nsgif_decode_frame failed: Invalid frame data

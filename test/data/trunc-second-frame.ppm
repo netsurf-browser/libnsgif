@@ -1,0 +1,11 @@
+P3
+# test/data/trunc-second-frame.gif
+# width                4
+# height               1
+# frame_count          2
+# loop_max             1
+4 2 256
+# frame 0:
+255 255 255 255 255 255 255 255 255 255 255 255
+# frame 1:
+255 0 0 255 255 255 255 255 255 255 255 255

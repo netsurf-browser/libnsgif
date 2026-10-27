@@ -1,0 +1,7 @@
+title: Restore background without a palette
+description: No colour tables; the background index is 1. Frame 0 draws
+description: white,white with disposal 2 (restore background), then frame 1
+description: draws white at x=1. Without a global palette the background index
+description: is ignored and the background is transparent. Expect
+description: transparent,white.
+fixed-by: 5f64dc9

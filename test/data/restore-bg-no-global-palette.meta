@@ -1,0 +1,7 @@
+title: Restore background with only local palettes
+description: No global palette; the background index is 0. Each frame has a
+description: local palette of red,green. Frame 0 draws green,green with
+description: disposal 2 (restore background), then frame 1 draws red at x=1.
+description: Without a global palette the background is transparent, not a
+description: local palette entry. Expect transparent,red.
+fixed-by: 5f64dc9

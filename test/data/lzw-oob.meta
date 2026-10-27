@@ -1,0 +1,7 @@
+title: LZW codes larger than the table
+description: 27x4 frame with an LZW minimum code size of 12, so codes are 13
+description: bits and can be larger than the 4096-entry table. The scan must
+description: reject the frame with "Invalid frame data".
+fixed-by: 088fa08 815676f 6e42a24
+stderr: nsgif_data_scan: Invalid frame data
+stderr: nsgif_frame_prepare: Frame can't be displayed

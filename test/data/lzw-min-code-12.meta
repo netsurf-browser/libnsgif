@@ -1,0 +1,6 @@
+title: LZW minimum code size of 12 is rejected
+description: LZW minimum code size of 12 is invalid. The scan must reject the
+description: frame with "Invalid frame data".
+fixed-by: 815676f 6e42a24
+stderr: nsgif_data_scan: Invalid frame data
+stderr: nsgif_frame_prepare: Frame can't be displayed

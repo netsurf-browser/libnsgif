@@ -1,0 +1,4 @@
+title: GIF with no frames
+description: GIF with a global colour table and a trailer, but no frames.
+fixed-by: 99a81d7
+stderr: nsgif_frame_prepare: Frame can't be displayed

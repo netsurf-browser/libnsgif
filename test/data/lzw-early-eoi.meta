@@ -1,0 +1,5 @@
+title: Early LZW end-of-information code
+description: Two 4x1 frames whose LZW data hits end-of-information early: frame
+description: 0 is full width (simple path), frame 1 is 3 wide (complex path).
+description: The pixels decoded so far are kept and the rest stay as they were.
+fixed-by: aa6e2af

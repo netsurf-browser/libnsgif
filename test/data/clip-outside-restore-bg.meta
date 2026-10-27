@@ -1,0 +1,5 @@
+title: Restore background for an off-canvas frame
+description: Frame 1 is entirely off-canvas (x=5 on a 2-wide canvas) with
+description: disposal 2 (restore background). Restoring its background must
+description: not touch the bitmap.
+fixed-by: 81e55f8

@@ -1,0 +1,5 @@
+title: Restore background to transparent
+description: Frame 0 has disposal 2 (restore background) and a transparent
+description: index, so its area clears to transparent, not the background
+description: colour.
+fixed-by: 9a2811c

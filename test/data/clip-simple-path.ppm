@@ -1,0 +1,13 @@
+P3
+# test/data/clip-simple-path.gif
+# width                2
+# height               2
+# frame_count          2
+# loop_max             1
+2 4 256
+# frame 0:
+255 0 0 255 0 0
+255 0 0 255 0 0
+# frame 1:
+255 0 0 255 0 0
+0 255 0 0 255 0

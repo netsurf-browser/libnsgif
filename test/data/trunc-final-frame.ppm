@@ -1,0 +1,9 @@
+P3
+# test/data/trunc-final-frame.gif
+# width                6
+# height               1
+# frame_count          1
+# loop_max             1
+6 1 256
+# frame 0:
+255 0 0 0 255 0 0 0 255 255 255 255 0 0 0 0 0 0

@@ -1,0 +1,5 @@
+title: Image data is a single clear code
+description: The image data is a single clear code (min code size 7, so 8-bit
+description: codes with no padding) followed by the block terminator. Expect a
+description: fully transparent frame.
+fixed-by: 34f3a9a
