@@ -1734,7 +1734,7 @@ nsgif_error nsgif_data_scan(
 			size_t bg_idx = gif->bg_index;
 			gif->info.background = gif->global_colour_table[bg_idx];
 		} else {
-			gif->info.background = gif->global_colour_table[0];
+			gif->info.background = NSGIF_TRANSPARENT_COLOUR;
 		}
 	}
 
