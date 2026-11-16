@@ -336,6 +336,10 @@ static nsgif_error nsgif__recover_frame(
 	size_t height = gif->info.height;
 	size_t width  = gif->info.width;
 
+	if (prev_frame == NULL) {
+		return NSGIF_ERR_OOM;
+	}
+
 	memcpy(bitmap, prev_frame, height * width * pixel_bytes);
 
 	return NSGIF_OK;
