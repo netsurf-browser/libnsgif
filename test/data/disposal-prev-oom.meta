@@ -1,0 +1,8 @@
+title: Restore previous with failed snapshot allocation
+description: Frame 0 is 1x1 at (4095,4095) with disposal 3 (restore previous),
+description: so it grows the canvas to 4096x4096 (64 MiB). The address space
+description: limit lets the canvas be allocated, but not the 64 MiB snapshot of
+description: it. Decoding frame 1 must fall back to restoring the background
+description: instead of crashing.
+fixed-by: 69c1120
+ulimit: 100000
