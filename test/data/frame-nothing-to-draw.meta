@@ -1,0 +1,4 @@
+title: Frames with nothing to draw
+description: 2x1. Frame 0: red row. Frame 1 is 0x1, frame 2 is 2x0, and frame 3
+description: is 2x1 at y=5, below the canvas. Frames 1 to 3 have green pixel
+description: data, but nothing is drawn. Every frame must show red,red.

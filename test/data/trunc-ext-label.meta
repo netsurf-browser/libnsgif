@@ -1,0 +1,3 @@
+title: File ends after an extension label
+description: A valid frame, then the file ends after a plain text extension
+description: label, before the block size. Expect the one frame.

@@ -1,0 +1,6 @@
+title: LZW output larger than the output buffer
+description: 65x65. Frame 0 is 64x65 at x=1. Not starting at x=0 means the
+description: decoder uses its output buffer, which holds 4096 pixels, and the
+description: 4160 pixels overflow it part-way through a code.
+description: Expect red, green, blue repeating in the frame's pixel order, with
+description: column 0 transparent.

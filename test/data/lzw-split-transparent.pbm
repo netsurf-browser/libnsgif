@@ -1,0 +1,24 @@
+P1
+# test/data/lzw-split-transparent.gif
+# width                3
+# height               16
+# frame_count          1
+# loop_max             1
+3 16
+# frame 0:
+1 1 0
+1 0 1
+1 0 0
+1 1 0
+1 0 1
+1 0 0
+1 1 0
+1 0 1
+1 0 0
+1 1 0
+1 0 1
+1 0 0
+1 1 0
+1 0 1
+1 0 0
+1 1 0

@@ -1,0 +1,4 @@
+title: LZW data longer than the frame
+description: 3x1. The LZW codes give green, blue, then the 2-pixel string
+description: green,blue, which is one pixel more than the frame holds. The extra
+description: pixel must be dropped: expect green,blue,green.

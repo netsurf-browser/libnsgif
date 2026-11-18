@@ -1,0 +1,5 @@
+title: Bad signature
+description: A valid 1x1 GIF with the signature changed from "GIF" to "XIF".
+description: The scan must fail.
+stderr: nsgif_data_scan: Invalid source data
+stderr: nsgif_frame_prepare: Frame can't be displayed

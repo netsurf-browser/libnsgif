@@ -1,0 +1,3 @@
+title: File ends inside an application extension
+description: A valid frame, then the file ends part-way through an application
+description: extension's identifier. Expect the one frame, no over-read.

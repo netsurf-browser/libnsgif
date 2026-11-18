@@ -1,0 +1,25 @@
+P1
+# test/data/interlaced.gif
+# width                1
+# height               8
+# frame_count          2
+# loop_max             1
+1 16
+# frame 0:
+0
+0
+0
+0
+0
+0
+0
+0
+# frame 1:
+0
+0
+0
+0
+0
+0
+0
+0

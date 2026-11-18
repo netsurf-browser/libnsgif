@@ -1,0 +1,4 @@
+title: File ends inside a graphic control extension
+description: A valid frame, then the file ends part-way through a graphic
+description: control extension's 4-byte block. Expect the one frame, no
+description: over-read.

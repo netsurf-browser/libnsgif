@@ -1,0 +1,6 @@
+title: Interlaced frames
+description: 1x8. Frame 0 is interlaced, with the rows stored in the order of
+description: the four passes (0, 4, 2 and 6, then the odd rows), where row N
+description: uses colour N. Frame 1 is a 1x1 interlaced frame, so the passes
+description: after the first have no rows. Frame 0 must show the colours in row
+description: order (red,green,blue,white,yellow,cyan,magenta,black).

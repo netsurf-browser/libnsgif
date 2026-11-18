@@ -1,0 +1,4 @@
+title: Ignored 640x480 screen size
+description: The screen size is 640x480, a common screen size that broken GIFs
+description: use, so it is ignored. The canvas takes the 1x1 size of frame 0.
+description: Expect a 1x1 green image.

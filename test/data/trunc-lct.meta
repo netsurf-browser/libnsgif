@@ -1,0 +1,4 @@
+title: File ends inside a local colour table
+description: A valid frame, then an image descriptor with a 4-entry local
+description: colour table, and the file ends after the first entry. Expect the
+description: one frame.

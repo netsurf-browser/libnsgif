@@ -1,0 +1,17 @@
+P1
+# test/data/disposal-prev-twice.gif
+# width                3
+# height               1
+# frame_count          5
+# loop_max             1
+3 5
+# frame 0:
+0 0 0
+# frame 1:
+0 0 0
+# frame 2:
+0 0 0
+# frame 3:
+0 0 0
+# frame 4:
+0 0 0
