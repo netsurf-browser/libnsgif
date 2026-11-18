@@ -1,0 +1,5 @@
+title: File ends inside the header
+description: The file is only the first 5 bytes of the 6-byte header. The scan
+description: must fail.
+stderr: nsgif_data_scan: Unexpected end of GIF source data
+stderr: nsgif_frame_prepare: Frame can't be displayed

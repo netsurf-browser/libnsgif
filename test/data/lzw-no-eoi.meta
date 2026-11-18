@@ -1,0 +1,8 @@
+title: LZW data ends without an end of information code
+description: 3x2. Each frame's LZW data ends with a block terminator before the
+description: frame is full, without an end of information code. Frame 0 covers
+description: the image, and gives green,green,green,blue,red, so its last pixel
+description: is cleared to transparent. Frame 1 is 2x2 at x=1 and gives red.
+description: Frame 2 is 2x2 at x=2, so it is clipped, and gives white. Other
+description: pixels are left as they were, so expect frame 2 to show
+description: green,red,white then blue,red,transparent.

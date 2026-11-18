@@ -1,0 +1,4 @@
+title: GIF with no frames and no global colour table
+description: Just the header, a logical screen descriptor with no global colour
+description: table, and a trailer.
+stderr: nsgif_frame_prepare: Frame can't be displayed

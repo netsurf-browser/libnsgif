@@ -1,0 +1,5 @@
+title: Transparent LZW codes longer than a row
+description: 3x16. The frame is 2x16 at x=1, with transparency index 0 (red).
+description: The pixels repeat red,green,green, so the LZW codes grow longer
+description: than the frame's rows, and are split over several rows. Expect
+description: column 0 transparent, and the frame's red pixels transparent.

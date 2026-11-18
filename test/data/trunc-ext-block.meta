@@ -1,0 +1,3 @@
+title: File ends inside an extension block
+description: A valid frame, then the file ends part-way through a plain text
+description: extension's 12-byte block. Expect the one frame, no over-read.

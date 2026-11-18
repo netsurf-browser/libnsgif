@@ -1,0 +1,3 @@
+title: File ends after an extension introducer
+description: A valid frame, then the file ends after an extension introducer,
+description: before the extension label. Expect the one frame.

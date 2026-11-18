@@ -1,0 +1,9 @@
+title: LZW data ending early in clipped frames
+description: 2x3. Frame 0 is white. Frames 1 to 3 are 2x3 at x=1, so their
+description: second column is clipped. Frame 1 has transparency index 0 (red)
+description: and gives green,blue,red,blue then an end of information code, so
+description: it draws green at 1,0 and leaves the rest white. Frame 2 gives
+description: blue then an invalid code, and frame 3 has only clear and end of
+description: information codes, so their decodes fail.
+stderr: Frame 2: nsgif_decode_frame failed: Invalid frame data
+stderr: Frame 3: nsgif_decode_frame failed: Invalid frame data

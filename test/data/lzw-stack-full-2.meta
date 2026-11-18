@@ -1,0 +1,10 @@
+title: LZW output larger than the output buffer
+description: 64x65. Frame 0 is a red pixel at 0,0. Frame 1 is 64x65 at x=1, so
+description: its last column is clipped. Clipped frames are decoded through an
+description: output buffer that holds 4096 pixels, and the 4160 pixels overflow
+description: it part-way through a code. Expect frame 1 to show red, green, blue
+description: repeating in the frame's pixel order from x=1, with column 0 from
+description: frame 0. Frame 2 is the same as frame 1, except its LZW data starts
+description: at green, and ends after 4096 pixels, which exactly fill the output
+description: buffer. Expect frame 2 to show frame 1's colours shifted by one,
+description: apart from its last row, which is left as frame 1's.

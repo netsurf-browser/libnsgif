@@ -1,0 +1,5 @@
+title: File ends after an LZW sub-block
+description: 2x1. The only LZW sub-block holds clear, red, and part of the next
+description: code, then the file ends, with no block terminator. Expect red,
+description: then transparent.
+stderr: nsgif_data_scan: Unexpected end of GIF source data

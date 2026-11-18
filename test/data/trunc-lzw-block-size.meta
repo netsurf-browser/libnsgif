@@ -1,0 +1,4 @@
+title: File ends after the LZW minimum code size
+description: A valid frame, then an image descriptor and the LZW minimum code
+description: size, and the file ends before the first sub-block size. Expect the
+description: one frame.

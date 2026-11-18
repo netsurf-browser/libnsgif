@@ -1,0 +1,4 @@
+title: Non-literal LZW code after a mid-frame clear code
+description: 2x1. The LZW data gives green, then a clear code followed by a code
+description: that isn't a literal. The frame decode must fail.
+stderr: Frame 0: nsgif_decode_frame failed: Invalid frame data

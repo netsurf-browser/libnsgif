@@ -1,0 +1,6 @@
+title: Two restore previous frames
+description: 3x1. Frame 0: red row. Frame 1: green at x=0, disposal 3 (restore
+description: previous). Frame 2: blue at x=1. Frame 3: white at x=2, disposal 3.
+description: Frame 4: green at x=0. The second restore must use the canvas from
+description: before frame 3, not before frame 1: frame 4 must show
+description: green,blue,red.

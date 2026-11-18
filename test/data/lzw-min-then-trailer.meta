@@ -1,0 +1,3 @@
+title: LZW minimum code size then trailer
+description: A valid frame, then an image descriptor followed by only the LZW
+description: minimum code size and the trailer. Expect the one frame.

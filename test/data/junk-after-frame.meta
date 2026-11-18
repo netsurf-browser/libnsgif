@@ -1,0 +1,5 @@
+title: Junk after a frame
+description: A valid frame, then 10 zero bytes, which is not an extension, an
+description: image descriptor, or a trailer. The scan must fail with "Invalid
+description: frame data", but the valid frame still decodes.
+stderr: nsgif_data_scan: Invalid frame data

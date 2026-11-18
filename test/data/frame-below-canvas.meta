@@ -1,0 +1,5 @@
+title: Frame below the canvas restored to background
+description: 2x1. Frame 0: red. Frame 1 is 1x1 at y=5, below the canvas,
+description: with green pixel data and the restore to background disposal
+description: method. Frame 2 is a blue pixel at x=1. Nothing is drawn or
+description: cleared for frame 1, so expect red,red then red,blue.

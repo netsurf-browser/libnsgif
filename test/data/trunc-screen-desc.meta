@@ -1,0 +1,5 @@
+title: File ends inside the logical screen descriptor
+description: The header, then the first 3 bytes of the 7-byte logical screen
+description: descriptor. The scan must fail.
+stderr: nsgif_data_scan: Unexpected end of GIF source data
+stderr: nsgif_frame_prepare: Frame can't be displayed

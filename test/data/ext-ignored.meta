@@ -1,0 +1,4 @@
+title: Ignored extensions
+description: A plain text extension and an application extension that isn't a
+description: loop count, then a 1x1 green frame. Both extensions must be
+description: skipped. Expect a green pixel.
